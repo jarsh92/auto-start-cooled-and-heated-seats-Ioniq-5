@@ -1,0 +1,24 @@
+[nemesis]
+version=1.1
+id=coldstart.heat
+name=Auto Seat
+type=application,service
+package-version=2.0
+short-desc="Temperature-based startup heat and ventilation"
+os=any
+models=any
+preinstall=scripts/check-build.sh
+postinstall=scripts/post.sh
+
+[app.0]
+kind=apk
+path=app/auto-seat.apk
+package=com.nemesis.coldstart
+component=com.nemesis.coldstart/.MainActivity
+
+[service.0]
+name=apply
+kind=sh
+path=svc/auto-seat.sh
+uid=root
+mode=background

@@ -1,0 +1,32 @@
+AUTO SEAT 2.0 — COMPATIBILITY: US ONLY, NOT EU
+
+INTENDED TARGET
+US-market 2023 Hyundai Ioniq 5 with Android-based Gen5W head unit,
+NEMESIS already installed, and exact internal Android build:
+  eng.vmadmin.20260903.161833
+The owner reported Auto Seat 2.0 works and looks great on this target car
+on November 13, 2026. Other vehicles/firmware remain unverified.
+
+NOT A UNIVERSAL IONIQ 5 INSTALLER
+Other US model years/trims and even another car with the same internal build
+are unverified. EU/European, Canadian, other non-US markets, ccNC head units,
+and other Hyundai/Kia/Genesis models are not supported by this package.
+Setting the dashboard to Fahrenheit or Celsius does not change its region.
+Features require the corresponding heated/ventilated seats and heated-wheel
+hardware. The app cannot add hardware missing from a trim.
+
+SOFTWARE VERSION CHECK
+The identifier above is ro.build.version.incremental, an internal Android
+build ID, not the full retail Hyundai software version shown in Settings.
+Its September 3, 2026 date alone does not establish compatibility.
+Record the full software/model screen, vehicle year, trim and US region when
+requesting review of another car.
+
+The installer refuses a different internal build. It does not separately
+verify region, year, trim, equipment or every framework file. Passing its
+build check alone is not proof of compatibility with another vehicle.
+If installation reports Unsupported head-unit build, stop; do not bypass
+the check or install different firmware to force it.
+
+This package does not install NEMESIS and does not update Hyundai firmware.
+See README.md for the compatibility table, installation and test steps.
