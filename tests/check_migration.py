@@ -17,6 +17,8 @@ def hook(path):
     text=path.read_text().replace('/data/nemesis',str(r/'data'))
     text=text.replace('export PATH='+str(r/'data')+'/bin:/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin',
                       'export PATH='+str(r/'bin')+':/usr/bin:/bin')
+    text=text.replace('export PATH=/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin',
+                      'export PATH='+str(r/'bin')+':/usr/bin:/bin')
     bridge=r/'data/apps/auto-seat/scripts/bridge.sh'
     if bridge.exists():
         temp=r/'bridge-runtime.sh'
@@ -48,14 +50,22 @@ elif op=='uninstall':
     if root.exists(): shutil.rmtree(root)
     (r/'installed.apk').unlink(missing_ok=True)
 elif op=='install':
-    with zipfile.ZipFile(args[1]) as z:
+    with zipfile.ZipFile(args[-1]) as z:
         meta=z.read('NEMESIS.data').decode()
         id=[l[3:] for l in meta.splitlines() if l.startswith('id=')][0]
         if id=='auto-seat' and 'coldstart.heat' in ids: sys.exit(23)
         if id=='coldstart.heat' and 'auto-seat' in ids: sys.exit(23)
         if (fail=='install' and id=='auto-seat') or (fail=='recover-install' and id=='coldstart.heat'): sys.exit(1)
         dest=r/'data/apps'/id
-        if id=='auto-seat' and (r/'data/apps/coldstart.heat').exists(): sys.exit(1)
+        if id in ids:
+            if '--update' not in args: sys.exit(3)
+            if id=='auto-seat' and hook(dest/'scripts/preun.sh'): sys.exit(5)
+            shutil.rmtree(dest); ids.remove(id); save()
+            (r/'installed.apk').unlink(missing_ok=True)
+        stage=r/'stage'
+        if stage.exists(): shutil.rmtree(stage)
+        stage.mkdir(); z.extractall(stage)
+        if hook(stage/'scripts/check-build.sh'): sys.exit(1)
         dest.mkdir(parents=True,exist_ok=True); z.extractall(dest)
         shutil.copyfile(dest/'app/auto-seat.apk',r/'installed.apk')
         ids.append(id); save()
@@ -228,3 +238,34 @@ with fixture() as f:
     f.recover(ok=False)
     assert tree(f.old)==before and (f.back/'HOLD').exists()
 print('PASS unknown bridge contents fail without partial cleanup')
+
+with fixture() as f:
+    f.migrate()
+    (f.new/'scripts/preun.sh').write_text('exit 99\n')
+    f.recover(ok=False)
+    assert f.new.exists() and (f.back/'HOLD').exists()
+    assert 'uninstall auto-seat' not in (f.r/'operations').read_text()
+print('PASS changed new uninstall hooks are rejected before removal')
+
+with fixture() as f:
+    # Independent fresh-install / same-ID update / uninstall lifecycle.
+    shutil.rmtree(f.old)
+    (f.r/'registry.json').write_text('[]')
+    (f.r/'installed.apk').unlink()
+    def cli(*args,ok=True,**env):
+        p=subprocess.run([str(f.bin/'nemesis'),*args],env=dict(f.env,**env),
+                         capture_output=True,text=True,timeout=10)
+        assert (p.returncode==0)==ok,(p.stdout,p.stderr)
+    cli('install',str(f.bundle/'candidate.zip'),ok=False,BUILD='wrong')
+    assert not f.old.exists() and not f.new.exists()
+    cli('install',str(f.bundle/'candidate.zip'))
+    assert tree(f.state)==f.before
+    assert f.old.is_dir() and not (f.old/'NEMESIS.data').exists()
+    assert 'CONFIG_READ' in f.helper('read').stdout
+    cli('install','--update',str(f.bundle/'candidate.zip'))
+    assert tree(f.state)==f.before
+    assert json.loads((f.r/'registry.json').read_text())==['auto-seat']
+    cli('uninstall','auto-seat')
+    assert not f.old.exists() and not f.new.exists()
+    assert tree(f.state)==f.before
+print('PASS actual preinstall/postinstall/preuninstall on fresh install, same-ID update and uninstall')

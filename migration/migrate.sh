@@ -175,6 +175,7 @@ recover)
     sync || die "Cannot sync hold"
     am force-stop com.nemesis.coldstart || die "Cannot close app"
     if has_package auto-seat; then
+        same_tree "$NEW" "$BUNDLE/candidate" || die "New installed files differ; refuse unknown uninstall hooks"
         "$NEM" service stop auto-seat/apply || die "Cannot stop new service"
         "$NEM" uninstall auto-seat || die "Cannot uninstall new package; never force"
     fi
