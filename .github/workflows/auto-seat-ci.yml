@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   regression:
@@ -19,6 +20,10 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+      - name: Inspect historical migration artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/inspect_previous_artifact.py
       - name: Shell syntax
         run: |
           bash -n tools/build_apk.sh tools/make_package.sh
