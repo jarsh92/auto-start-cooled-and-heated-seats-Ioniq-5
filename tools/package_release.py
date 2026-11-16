@@ -72,7 +72,7 @@ for directory in ['app/src', 'app/res', 'package/scripts', 'package/svc', 'tests
     for p in (ROOT / directory).rglob('*'):
         if p.is_file() and '__pycache__' not in p.parts and 'target' not in p.parts:
             source_files.append((p, 'auto-seat/' + p.relative_to(ROOT).as_posix()))
-for name in ['.gitignore', 'app/AndroidManifest.xml', 'package/NEMESIS.data', 'LICENSE', 'CREDITS.md', 'README.md', 'UPSTREAM-README.md', 'EXTENDING.md', 'UPDATE-2.0.md', 'VALIDATION-2.0.md', 'COMPATIBILITY.txt', 'STORE-MIGRATION.md', 'VEHICLE-TEST.md', 'STORE-SUBMISSION.md']:
+for name in ['.gitignore', 'app/AndroidManifest.xml', 'package/NEMESIS.data', 'LICENSE', 'CREDITS.md', 'README.md', 'UPSTREAM-README.md', 'EXTENDING.md', 'UPDATE-2.0.md', 'VALIDATION-2.0.md', 'COMPATIBILITY.txt', 'STORE-MIGRATION.md', 'VEHICLE-TEST.md', 'STORE-SUBMISSION.md', 'MIGRATION-VALIDATION.md', '.github/workflows/auto-seat-ci.yml', 'downloads/Ioniq5-auto-seat-2.0.zip']:
     source_files.append((ROOT / name, 'auto-seat/' + name))
 source = out / ('Ioniq5-auto-seat-' + version + '-source.zip')
 write_zip(source, source_files)
@@ -115,7 +115,7 @@ for action, token in [('check', ''), ('migrate', ' APPROVE-MIGRATION'),
     (kit / 'actions' / (action.upper() + '.data')).write_text(
         '[nemesis]\nversion=1.0\ntype=execute\npath=actions/' + action + '.sh\n')
 shutil.copyfile(kit / 'actions/CHECK.data', kit / 'NEMESIS.data')
-for name in ['VEHICLE-TEST.md', 'STORE-MIGRATION.md', 'STORE-SUBMISSION.md', 'LICENSE', 'CREDITS.md']:
+for name in ['VEHICLE-TEST.md', 'STORE-MIGRATION.md', 'STORE-SUBMISSION.md', 'MIGRATION-VALIDATION.md', 'LICENSE', 'CREDITS.md']:
     shutil.copyfile(ROOT / name, kit / name)
 migration_usb = out / ('Ioniq5-auto-seat-' + version + '-PREFLIGHT-USB.zip')
 write_zip(migration_usb, [(p, p.relative_to(kit).as_posix()) for p in kit.rglob('*') if p.is_file()])

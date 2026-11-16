@@ -1,6 +1,7 @@
 # Auto Seat 2.0 migration candidate
 
-Status: prepared for automated testing and an owner-approved vehicle preflight.
+Status: automated migration/recovery checks passed; awaiting an owner-approved vehicle preflight.
+See [MIGRATION-VALIDATION.md](MIGRATION-VALIDATION.md) for evidence and limits.
 Do not submit to the NEMESIS store until vehicle migration and recovery have passed.
 The original published v2.0 downloads remain unchanged.
 

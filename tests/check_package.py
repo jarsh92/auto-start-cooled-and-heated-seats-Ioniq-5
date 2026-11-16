@@ -36,7 +36,7 @@ with zipfile.ZipFile(OUT/'Ioniq5-auto-seat-2.0-PREFLIGHT-USB.zip') as kit:
     for n in ['VEHICLE-TEST.md','STORE-MIGRATION.md','STORE-SUBMISSION.md']:
         assert kit.read(n)==(ROOT/n).read_bytes()
 with zipfile.ZipFile(OUT/'Ioniq5-auto-seat-2.0-source.zip') as z:
-    for n in ['migration/migrate.sh','STORE-MIGRATION.md','VEHICLE-TEST.md','STORE-SUBMISSION.md','tests/check_migration.py']:
+    for n in ['migration/migrate.sh','STORE-MIGRATION.md','VEHICLE-TEST.md','STORE-SUBMISSION.md','tests/check_migration.py','MIGRATION-VALIDATION.md','.github/workflows/auto-seat-ci.yml','downloads/Ioniq5-auto-seat-2.0.zip']:
         assert z.read('auto-seat/'+n)==(ROOT/n).read_bytes()
     assert not any(n.endswith(('.jks','.keystore','.pem','.key','.apk')) for n in z.namelist())
 assert b'\\n' not in (OUT/'READ-ME.txt').read_bytes()
@@ -46,3 +46,5 @@ for line in (OUT/'SHA256SUMS.txt').read_text().splitlines():
     expected,name=line.split('  ',1)
     assert digest((OUT/name).read_bytes())==expected
 print('PASS nested archive layouts, preflight default, original APK/DEX/helper path, source/docs, checksums and secret exclusion')
+
+print((OUT/'SHA256SUMS.txt').read_text())
