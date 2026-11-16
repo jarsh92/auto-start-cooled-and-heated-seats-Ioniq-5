@@ -178,6 +178,9 @@ recover)
         "$NEM" service stop auto-seat/apply || die "Cannot stop new service"
         "$NEM" uninstall auto-seat || die "Cannot uninstall new package; never force"
     fi
+    if has_package coldstart.heat; then
+        "$NEM" service stop coldstart.heat/apply || die "Cannot stop original before restore"
+    fi
     restore_state
     if has_package coldstart.heat; then
         same_tree "$OLD" "$BUNDLE/original" || die "Old package differs; manual review required"
@@ -186,6 +189,9 @@ recover)
         [ ! -e "$OLD" ] && [ ! -L "$OLD" ] || die "Orphan legacy path; manual review required"
         "$NEM" install "$BACK/original.zip" || die "Original reinstall failed; snapshot retained"
     fi
+    # The original postinstall seeds absent defaults; restore the exact snapshot
+    # again while the actuation lock/manual marker still suppress startup.
+    restore_state
     check_old
     same_tree "$STATE" "$BACK/state" || die "Recovered settings mismatch"
     echo recovered > "$BACK/RECOVERED" || die "Cannot record recovery"

@@ -30,7 +30,7 @@ This is a compatibility directory, not a second NEMESIS package: it has no descr
 The helper is byte-identical to the new package helper. Both use the same settings and actuation lock.
 The new preinstall rejects any existing legacy directory. NEMESIS conflict metadata rejects
 a registered `coldstart.heat` in either direction.
-The new preuninstall removes only a verified owned bridge. It never recursively removes an unknown legacy tree.
+The new preuninstall removes only a marked, strictly allowlisted owned bridge (including an interrupted helper copy). It never recursively removes an unknown legacy tree.
 No hook uninstalls another package or edits packages.db/services.db.
 
 ## Migration transaction
@@ -67,7 +67,7 @@ and does not start services or send actuator calls.
 Recovery requires READY and matching snapshot copies and recovery ZIP.
 It takes the same lock, holds/stops the new package if present, removes it through NEMESIS,
 restores settings first, and reinstalls the original signed package only if absent.
-An already registered original is verified rather than overwritten.
+After original reinstall, it restores the exact snapshot again because original postinstall can seed absent defaults. An already registered original is verified rather than overwritten.
 It then checks original APK, original tree, settings and single service.
 The manual-priority marker suppresses startup actuation in the current boot.
 The snapshots are retained.

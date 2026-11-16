@@ -35,10 +35,12 @@ with tempfile.TemporaryDirectory() as tmp:
     apksigner = Path(sdk) / 'build-tools/30.0.3/apksigner'
     if not apksigner.is_file():
         raise SystemExit(f'Cannot find Android apksigner at {apksigner}')
-    check = subprocess.run([str(apksigner), 'verify', '--print-certs', str(temp_apk)],
+    check = subprocess.run([str(apksigner), 'verify', '--verbose', '--min-sdk-version', '19', '--print-certs', str(temp_apk)],
                            capture_output=True, text=True)
     if check.returncode:
         raise SystemExit('Original APK signature verification failed: ' + check.stderr)
+    if 'Verified using v1 scheme (JAR signing): true' not in check.stdout:
+        raise SystemExit('KitKat v1 signature verification is required.')
     certs = [line.split(':', 1)[1].strip().lower().replace(':', '')
              for line in check.stdout.splitlines()
              if line.startswith('Signer #1 certificate SHA-256 digest:')]
@@ -75,7 +77,7 @@ for name in ['.gitignore', 'app/AndroidManifest.xml', 'package/NEMESIS.data', 'L
 source = out / ('Ioniq5-auto-seat-' + version + '-source.zip')
 write_zip(source, source_files)
 descriptor = out / 'NEMESIS.data'
-descriptor.write_text('[nemesis]\nversion=1.0\ntype=install\npath=' + inner.name + '\n')
+descriptor.write_text('[nemesis]\nversion=1.0\ntype=open\n')
 readme = out / 'READ-ME.txt'
 readme.write_text(
     'AUTO SEAT ' + version + ' — UNTESTED MIGRATION CANDIDATE\n\n'

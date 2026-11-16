@@ -62,6 +62,8 @@ elif op=='install':
         if id=='auto-seat':
             if fail=='postinstall': sys.exit(1)
             if hook(dest/'scripts/post.sh'): sys.exit(1)
+        else:
+            if hook(dest/'scripts/post.sh'): sys.exit(1)
 else: sys.exit(99)
 '''
 def tree(path):
@@ -172,7 +174,7 @@ with fixture() as f:
     assert (f.back/'RECOVERED').exists()
     f.run('accept','APPROVE-ACCEPTANCE',ok=False)
 print('PASS migration, opaque settings, bridge read, blocked control/save/startup, acceptance, recovery')
-for failure in ['backup','uninstall','install']:
+for failure in ['backup','uninstall','install','postinstall']:
     with fixture() as f:
         f.migrate(ok=False,FAIL=failure)
         assert not f.lock.exists()
@@ -204,3 +206,25 @@ with fixture() as f:
     f.migrate(); shutil.rmtree(f.r/'dev'); f.recover()
     assert tree(f.state)==f.before
 print('PASS recovery after simulated reboot')
+
+with fixture() as f:
+    # Missing original setting keys must remain absent after migration and recovery.
+    (f.state/'threshold_f').unlink(); (f.state/'cool_enabled').unlink()
+    f.before=tree(f.state)
+    f.migrate(); assert tree(f.state)==f.before
+    f.recover(); assert tree(f.state)==f.before
+print('PASS absent setting files survive both new and original postinstall defaults')
+
+with fixture() as f:
+    f.migrate()
+    (f.old/'scripts/seat-action.sh').write_bytes(b'partial interrupted copy')
+    f.recover()
+    assert tree(f.old)==tree(f.bundle/'original')
+print('PASS owned partial bridge copy can be removed during recovery')
+
+with fixture() as f:
+    f.migrate(); (f.old/'unknown').write_text('retain')
+    before=tree(f.old)
+    f.recover(ok=False)
+    assert tree(f.old)==before and (f.back/'HOLD').exists()
+print('PASS unknown bridge contents fail without partial cleanup')

@@ -1,5 +1,7 @@
 # Auto Seat 2.0
 
+> PR #2 prepares the new NEMESIS ID `auto-seat`. The original released APK is unchanged, but migration packaging is not yet vehicle-validated. Existing `coldstart.heat` owners must follow [VEHICLE-TEST.md](VEHICLE-TEST.md) after approval. Same-ID update instructions below describe the original released package only. See [STORE-MIGRATION.md](STORE-MIGRATION.md) and [STORE-SUBMISSION.md](STORE-SUBMISSION.md).
+
 Temperature-based startup heating and ventilation for a NEMESIS-equipped Hyundai Ioniq 5 Gen5W head unit. **2.0 is released following the owner's successful in-car report on the intended US-market vehicle. Other cars and firmware remain unverified.** The launcher label is simply **Auto Seat**.
 
 <img src="artwork/auto-seat-blue-frame.png" alt="Auto Seat Blue Frame icon" width="128">
