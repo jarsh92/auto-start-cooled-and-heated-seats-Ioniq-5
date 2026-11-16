@@ -46,3 +46,9 @@ This migration procedure is not yet implemented. Do not ask an owner to uninstal
 References:
 - https://github.com/xwtk/hmg_nemesis/blob/main/05-Packages.md
 - https://github.com/xwtk/hmg_nemesis/blob/main/08-Submit-a-Package.md
+
+## Signed APK provenance (store candidate)
+
+The packaging script now reads the existing published `downloads/Ioniq5-auto-seat-2.0.zip` (expected SHA-256 `32d6e014421bc2ff1104de3c004079377c39b8e62eae0e1c6f2d470e9aefb5ad`), extracts its sole APK, verifies the APK signature and expected signer certificate SHA-256 `6b555bd8920206e9588aaa68a63ed94ffdbebe68ad3a4c909b7d4ebb877bab59`, and copies those exact APK bytes into the candidate package. No new key or signing operation is used. The original archive and release are not modified. The packaging script still requires an available Android SDK apksigner for verification.
+
+A separate Maps HUD Suite private signing backup must **not** be assumed to belong to Auto Seat. Compare the public certificate fingerprint only, using `keytool -list -v -keystore /private/path/to/backup.jks` in a trusted private environment, and compare the SHA-256 to the Auto Seat expected fingerprint above. Never commit, upload, or expose keystore bytes or passwords. No matching backup has been verified in this workspace.
