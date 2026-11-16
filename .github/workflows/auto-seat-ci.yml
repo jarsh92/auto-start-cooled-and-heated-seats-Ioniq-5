@@ -112,6 +112,55 @@ jobs:
               assert b'id=auto-seat' in z.read('NEMESIS.data')
           print('APK byte identity verified:',hashlib.sha256(originals[0]).hexdigest())
           PY
+      - name: Prepare single-extraction read-only USB download
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import zipfile, subprocess, tempfile
+          kit=Path('usb-preflight')
+          kit.mkdir()
+          with zipfile.ZipFile('dist/Ioniq5-auto-seat-2.0-PREFLIGHT-USB.zip') as z:
+              for name in z.namelist():
+                  if name in ('migrate.sh','original.zip','candidate.zip') or name.startswith('original/'):
+                      assert not name.startswith('/') and '..' not in name.split('/')
+                      target=kit/name
+                      target.parent.mkdir(parents=True,exist_ok=True)
+                      target.write_bytes(z.read(name))
+          (kit/'NEMESIS.data').write_text('[nemesis]\nversion=1.0\ntype=execute\npath=NEMESIS.sh\n')
+          wrapper='''#!/system/bin/sh
+          # Read-only preflight. Save stdout and errors directly to this USB.
+          /system/bin/sh ./migrate.sh check > ./Auto-Seat-Preflight.log 2>&1
+          result=$?
+          echo "Auto Seat preflight finished (exit $result). See Auto-Seat-Preflight.log on USB."
+          exit "$result"
+          '''
+          (kit/'NEMESIS.sh').write_text(wrapper)
+          subprocess.run(['sh','-n',str(kit/'NEMESIS.sh')],check=True)
+          # Verify that the wrapper preserves the result and saves error output.
+          for result in (0,7):
+              with tempfile.TemporaryDirectory() as folder:
+                  base=Path(folder)
+                  (base/'migrate.sh').write_text('echo "preflight $1"\necho "diagnostic" >&2\nexit '+str(result)+'\n')
+                  checked=subprocess.run(['sh','-c',wrapper.replace('/system/bin/sh','/bin/sh')],cwd=base,capture_output=True,text=True)
+                  assert checked.returncode==result
+                  assert (base/'Auto-Seat-Preflight.log').read_text()=='preflight check\ndiagnostic\n'
+          (kit/'READ-ME.txt').write_text(
+              'AUTO SEAT READ-ONLY PREFLIGHT\n\n'
+              'Extract ALL contents of this download directly onto an empty USB drive.\n'
+              'NEMESIS.data and NEMESIS.sh must be at the top level.\n'
+              'While parked, with Android fully started, insert USB and confirm Execute.\n'
+              'Bring back Auto-Seat-Preflight.log from this USB.\n'
+              'This runs checks only; it does not install, uninstall or change Auto Seat.\n')
+          assert not (kit/'actions').exists()
+          assert (kit/'migrate.sh').read_bytes()==Path('migration/migrate.sh').read_bytes()
+          print('PASS standalone USB root, read-only action, log capture and error exit status')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Auto-Seat-Preflight-USB
+          path: usb-preflight/
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@v4
         with:
           name: auto-seat-2.0-MIGRATION-UNTESTED
