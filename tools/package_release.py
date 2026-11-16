@@ -9,9 +9,42 @@ ROOT = Path(__file__).resolve().parents[1]
 NS = '{http://schemas.android.com/apk/res/android}'
 version = ET.parse(ROOT / 'app/AndroidManifest.xml').getroot().get(NS + 'versionName')
 assert version and all(c.isdigit() or c == '.' for c in version)
-apk = ROOT / 'app/auto-seat.apk'
-if not apk.is_file():
-    raise SystemExit('Build the signed app/auto-seat.apk first.')
+# Reuse the owner-tested, originally signed APK from the published release.
+# Never rebuild, re-sign, or silently substitute an APK for this store candidate.
+RELEASE = ROOT / 'downloads/Ioniq5-auto-seat-2.0.zip'
+RELEASE_SHA256 = '32d6e014421bc2ff1104de3c004079377c39b8e62eae0e1c6f2d470e9aefb5ad'
+EXPECTED_CERT = '6b555bd8920206e9588aaa68a63ed94ffdbebe68ad3a4c909b7d4ebb877bab59'
+if hashlib.sha256(RELEASE.read_bytes()).hexdigest() != RELEASE_SHA256:
+    raise SystemExit('Original release archive checksum mismatch; refusing to package.')
+with zipfile.ZipFile(RELEASE) as old:
+    apk_entries = [n for n in old.namelist() if n.endswith('.apk') and not n.endswith('/')]
+    if len(apk_entries) != 1:
+        raise SystemExit(f'Expected exactly one APK in original release; found {apk_entries!r}')
+    original_apk = old.read(apk_entries[0])
+# Verify the original signature using Android SDK apksigner, without requiring any key.
+import os
+import subprocess
+import tempfile
+with tempfile.TemporaryDirectory() as tmp:
+    temp_apk = Path(tmp) / 'original.apk'
+    temp_apk.write_bytes(original_apk)
+    sdk = os.environ.get('ANDROID_SDK') or os.environ.get('ANDROID_HOME')
+    if not sdk:
+        raise SystemExit('ANDROID_SDK or ANDROID_HOME is required for signature verification.')
+    apksigner = Path(sdk) / 'build-tools/30.0.3/apksigner'
+    if not apksigner.is_file():
+        raise SystemExit(f'Cannot find Android apksigner at {apksigner}')
+    check = subprocess.run([str(apksigner), 'verify', '--print-certs', str(temp_apk)],
+                           capture_output=True, text=True)
+    if check.returncode:
+        raise SystemExit('Original APK signature verification failed: ' + check.stderr)
+    certs = [line.split(':', 1)[1].strip().lower().replace(':', '')
+             for line in check.stdout.splitlines()
+             if line.startswith('Signer #1 certificate SHA-256 digest:')]
+    if certs != [EXPECTED_CERT]:
+        raise SystemExit('Original APK signing certificate does not match the owner-tested build.')
+    apk = ROOT / 'app/auto-seat.apk'
+    apk.write_bytes(original_apk)
 package = ROOT / 'package'
 (package / 'app').mkdir(exist_ok=True)
 shutil.copyfile(apk, package / 'app/auto-seat.apk')
