@@ -21,6 +21,7 @@ with zipfile.ZipFile(RELEASE) as old:
     if len(apk_entries) != 1:
         raise SystemExit(f'Expected exactly one APK in original release; found {apk_entries!r}')
     original_apk = old.read(apk_entries[0])
+    original_files = {n: old.read(n) for n in old.namelist() if not n.endswith('/')}
 # Verify the original signature using Android SDK apksigner, without requiring any key.
 import os
 import subprocess
@@ -65,11 +66,11 @@ inner = out / ('Ioniq5-auto-seat-' + version + '-MIGRATION-UNTESTED.zip')
 write_zip(inner, [(p, p.relative_to(package).as_posix()) for p in package.rglob('*') if p.is_file()])
 # Public source allowlist: no keys, access files, local toolchains, or private backups.
 source_files = []
-for directory in ['app/src', 'app/res', 'package/scripts', 'package/svc', 'tests', 'tools', 'artwork']:
+for directory in ['app/src', 'app/res', 'package/scripts', 'package/svc', 'tests', 'tools', 'artwork', 'migration']:
     for p in (ROOT / directory).rglob('*'):
         if p.is_file() and '__pycache__' not in p.parts and 'target' not in p.parts:
             source_files.append((p, 'auto-seat/' + p.relative_to(ROOT).as_posix()))
-for name in ['.gitignore', 'app/AndroidManifest.xml', 'package/NEMESIS.data', 'LICENSE', 'CREDITS.md', 'README.md', 'UPSTREAM-README.md', 'EXTENDING.md', 'UPDATE-2.0.md', 'VALIDATION-2.0.md', 'COMPATIBILITY.txt']:
+for name in ['.gitignore', 'app/AndroidManifest.xml', 'package/NEMESIS.data', 'LICENSE', 'CREDITS.md', 'README.md', 'UPSTREAM-README.md', 'EXTENDING.md', 'UPDATE-2.0.md', 'VALIDATION-2.0.md', 'COMPATIBILITY.txt', 'STORE-MIGRATION.md', 'VEHICLE-TEST.md', 'STORE-SUBMISSION.md']:
     source_files.append((ROOT / name, 'auto-seat/' + name))
 source = out / ('Ioniq5-auto-seat-' + version + '-source.zip')
 write_zip(source, source_files)
@@ -77,20 +78,48 @@ descriptor = out / 'NEMESIS.data'
 descriptor.write_text('[nemesis]\nversion=1.0\ntype=install\npath=' + inner.name + '\n')
 readme = out / 'READ-ME.txt'
 readme.write_text(
-    'AUTO SEAT ' + version + ' — UNTESTED MIGRATION CANDIDATE\\n\\n'
-    'DO NOT INSTALL ON A VEHICLE OR SUBMIT TO THE NEMESIS STORE.\\n'
-    'This candidate uses the new auto-seat package ID, which conflicts with\\n'
-    'the previously installed coldstart.heat package. Same-ID update instructions\\n'
-    'do not apply. A supported, backup-verified migration and recovery procedure\\n'
-    'must be developed and tested before the old package is removed.\\n\\n'
-    'The firmware guard requires eng.vmadmin.20260903.161833.\\n'
-    'Compatibility beyond the owner-tested US 2023 Ioniq 5 Gen5W is unverified.\\n'
-    'See STORE-MIGRATION.md in the GitHub source for migration requirements.\\n'
+    'AUTO SEAT ' + version + ' — UNTESTED MIGRATION CANDIDATE\n\n'
+    'DO NOT INSTALL ON A VEHICLE OR SUBMIT TO THE NEMESIS STORE.\n'
+    'This candidate uses the new auto-seat package ID, which conflicts with\n'
+    'the previously installed coldstart.heat package. Same-ID update instructions\n'
+    'do not apply. A supported, backup-verified migration and recovery procedure\n'
+    'is supplied separately as a preflight-first migration kit.\n\n'
+    'The firmware guard requires eng.vmadmin.20260903.161833.\n'
+    'Compatibility beyond the owner-tested US 2023 Ioniq 5 Gen5W is unverified.\n'
+    'See STORE-MIGRATION.md in the GitHub source for migration requirements.\n'
 )
 
 usb = out / ('Ioniq5-auto-seat-' + version + '-MIGRATION-UNTESTED-USB.zip')
 write_zip(usb, [(descriptor, 'NEMESIS.data'), (inner, inner.name), (readme, 'READ-ME.txt'), (source, 'source/' + source.name), (ROOT / 'LICENSE', 'LICENSE'), (ROOT / 'CREDITS.md', 'CREDITS.md'), (ROOT / 'COMPATIBILITY.txt', 'COMPATIBILITY.txt'), (ROOT / 'README.md', 'README.md')])
+
+# Separate execute kit defaults to a read-only check. Never auto-install this ZIP.
+kit = out / 'migration-kit'
+if kit.exists(): shutil.rmtree(kit)
+kit.mkdir()
+(kit / 'original').mkdir()
+for name, data in original_files.items():
+    target = kit / 'original' / name
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(data)
+shutil.copyfile(RELEASE, kit / 'original.zip')
+shutil.copyfile(inner, kit / 'candidate.zip')
+shutil.copytree(package, kit / 'candidate')
+shutil.copyfile(ROOT / 'migration/migrate.sh', kit / 'migrate.sh')
+(kit / 'actions').mkdir()
+for action, token in [('check', ''), ('migrate', ' APPROVE-MIGRATION'),
+                      ('recover', ' APPROVE-RECOVERY'), ('accept', ' APPROVE-ACCEPTANCE')]:
+    (kit / 'actions' / (action + '.sh')).write_text(
+        '#!/system/bin/sh\nexec /system/bin/sh ./migrate.sh ' + action + token + '\n')
+    (kit / 'actions' / (action.upper() + '.data')).write_text(
+        '[nemesis]\nversion=1.0\ntype=execute\npath=actions/' + action + '.sh\n')
+shutil.copyfile(kit / 'actions/CHECK.data', kit / 'NEMESIS.data')
+for name in ['VEHICLE-TEST.md', 'STORE-MIGRATION.md', 'STORE-SUBMISSION.md', 'LICENSE', 'CREDITS.md']:
+    shutil.copyfile(ROOT / name, kit / name)
+migration_usb = out / ('Ioniq5-auto-seat-' + version + '-PREFLIGHT-USB.zip')
+write_zip(migration_usb, [(p, p.relative_to(kit).as_posix()) for p in kit.rglob('*') if p.is_file()])
+shutil.rmtree(kit)
 checksums = out / 'SHA256SUMS.txt'
-checksums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in [inner, source, usb]))
-for p in [inner, source, usb, checksums]:
+
+checksums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in [inner, source, usb, migration_usb]))
+for p in [inner, source, usb, migration_usb, checksums]:
     print(p)

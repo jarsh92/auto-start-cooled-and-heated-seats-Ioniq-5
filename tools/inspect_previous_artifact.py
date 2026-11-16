@@ -15,7 +15,14 @@ assert sha(original_apk) == '97a181a2289ac31285d8347964dfeba7e6982da7447968886dc
 # GitHub token is used only in the Authorization header, never printed.
 url = 'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY'] + '/actions/artifacts/14281222235/zip'
 req = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept':'application/vnd.github+json'})
-with urllib.request.urlopen(req) as r: archive = r.read()
+class ArtifactRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected:
+            redirected.remove_header('Authorization')
+        return redirected
+with urllib.request.build_opener(ArtifactRedirect).open(req, timeout=60) as r:
+    archive = r.read()
 assert sha(archive) == '213151f7eb95b483baa34cd076ff9d44e2a778c145f4ea93cb039ac6918cabd0'
 with zipfile.ZipFile(io.BytesIO(archive)) as outer:
     print('HISTORICAL ARTIFACT CONTENTS', outer.namelist())

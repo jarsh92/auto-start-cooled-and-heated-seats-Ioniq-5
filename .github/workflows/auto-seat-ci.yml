@@ -27,9 +27,11 @@ jobs:
       - name: Shell syntax
         run: |
           bash -n tools/build_apk.sh tools/make_package.sh
-          sh -n package/scripts/*.sh package/svc/*.sh
+          for script in package/scripts/*.sh package/svc/*.sh migration/*.sh; do sh -n "$script"; done
       - name: Seat command regression
         run: python3 tests/check_commands.py
+      - name: Migration and recovery fault injection
+        run: python3 tests/check_migration.py
       - name: Startup/manual priority regression
         run: python3 tests/check_startup_priority.py
       - name: Descriptor and migration safety

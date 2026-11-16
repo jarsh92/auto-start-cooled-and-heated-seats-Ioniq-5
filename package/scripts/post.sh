@@ -12,5 +12,7 @@ mkdir -p "$STATE" 2>/dev/null
 [ -r "$STATE/cool_above_f" ] || echo 75 > "$STATE/cool_above_f"
 [ -r "$STATE/vent_drv" ] || echo 0 > "$STATE/vent_drv"
 [ -r "$STATE/vent_pass" ] || echo 0 > "$STATE/vent_pass"
-echo "coldstart.heat installed (threshold_f=$(cat "$STATE/threshold_f" 2>/dev/null))"
+. /data/nemesis/apps/auto-seat/scripts/bridge.sh
+bridge_install || { echo "Cannot create legacy APK helper bridge"; exit 1; }
+echo "auto-seat installed (threshold_f=$(cat "$STATE/threshold_f" 2>/dev/null))"
 exit 0

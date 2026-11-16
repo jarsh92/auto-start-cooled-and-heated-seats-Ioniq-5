@@ -26,6 +26,12 @@
 export PATH=/data/nemesis/bin:/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin
 export LD_LIBRARY_PATH=/vendor/lib:/system/lib
 
+# Durable migration hold: never actuate before state verification.
+if [ -e /data/nemesis/backup/auto-seat-migration-v1/HOLD ]; then
+    echo "Auto Seat migration hold; use recovery or explicit acceptance."
+    exit 0
+fi
+
 TAG=coldstart.heat
 STATE=/data/nemesis/state/$TAG
 DIAG=$STATE/diag.log

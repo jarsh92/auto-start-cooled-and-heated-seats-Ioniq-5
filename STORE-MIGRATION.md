@@ -1,54 +1,98 @@
-# Auto Seat 2.0: NEMESIS store candidate
+# Auto Seat 2.0 migration candidate
 
-Status: draft source changes only. No store submission, rebuilt installer, or in-car migration validation has been completed. The published v2.0 USB installer still uses coldstart.heat. Do not upload that installer under the new name.
+Status: prepared for automated testing and an owner-approved vehicle preflight.
+Do not submit to the NEMESIS store until vehicle migration and recovery have passed.
+The original published v2.0 downloads remain unchanged.
 
-## Identity
+## Identities and unchanged binary
 
-- NEMESIS package ID: `auto-seat` (availability still requires confirmation in the portal).
-- Display name: Auto Seat.
-- App and package version: 2.0.
-- Android package: `com.nemesis.coldstart`; retain the tested APK and its signing identity.
-- Saved settings: `/data/nemesis/state/coldstart.heat`; retain this legacy location because the existing APK and service both use it.
-- Keep the existing shared actuation lock and manual-override marker.
-- Retain all upstream credits and the MIT license.
+| Item | Value |
+| --- | --- |
+| NEMESIS old / new | `coldstart.heat` / `auto-seat` |
+| Android package | `com.nemesis.coldstart` |
+| Android version / code | 2.0 / 13 |
+| Persistent settings | `/data/nemesis/state/coldstart.heat` |
+| Shared lock | `/dev/seat-comfort/actuation.lock` |
+| Firmware guard | `eng.vmadmin.20260903.161833` |
+| Original release ZIP SHA-256 | `32d6e014421bc2ff1104de3c004079377c39b8e62eae0e1c6f2d470e9aefb5ad` |
+| Original APK SHA-256 | `97a181a2289ac31285d8347964dfeba7e6982da7447968886dc53d5302b7ad3b` |
+| Signer certificate SHA-256 | `6b555bd8920206e9588aaa68a63ed94ffdbebe68ad3a4c909b7d4ebb877bab59` |
 
-This branch contains the 2.0 source from commit `7680d2f227721fdbd64822f664296f8170de79bd` and changes package/NEMESIS.data to the new ID with a legacy-package conflict. The APK and service retain their existing internal identities.
+Packaging verifies the release checksum, the signature and the signer, and copies the exact APK bytes.
+There is no signing operation or replacement key. Source compilation is a separate check.
 
-The descriptor adds `depends=!coldstart.heat`. NEMESIS checks this conflict before installation and enforces it in both directions. A new package ID does not update or replace the old package automatically. The conflict prevents two registered startup services from coexisting.
+## Compatibility bridge
 
-## Migration preparation
+The immutable APK hard-codes
+`/data/nemesis/apps/coldstart.heat/scripts/seat-action.sh`.
+The new postinstall creates only that helper and an ownership marker at the legacy path.
+This is a compatibility directory, not a second NEMESIS package: it has no descriptor or service.
+The helper is byte-identical to the new package helper. Both use the same settings and actuation lock.
+The new preinstall rejects any existing legacy directory. NEMESIS conflict metadata rejects
+a registered `coldstart.heat` in either direction.
+The new preuninstall removes only a verified owned bridge. It never recursively removes an unknown legacy tree.
+No hook uninstalls another package or edits packages.db/services.db.
 
-Do not call `nemesis uninstall coldstart.heat` from the new package's install hooks. Do not install auto-seat and then uninstall coldstart.heat: the old uninstaller also removes the shared Android package.
+## Migration transaction
 
-Before distributing an installer, implement and validate a separate migration procedure that:
+`migration/migrate.sh` defaults to `check`, which does not stop services, close the app,
+change settings, install, uninstall or create a backup. It verifies the firmware, fully
+started Android, root access, toolbox commands, exact original installed package tree,
+original installed APK bytes, state tree and exactly one old service. Only the published
+original 2.0 is supported. Older, modified or unknown uninstall hooks fail closed.
 
-1. Confirms the exact supported head-unit build before making changes.
-2. Checks the installed old package and its uninstall hooks.
-3. Stops the old startup service while taking a verified backup of saved state. Saves a reinstallable copy of the existing package and the tested signed APK for recovery.
-4. Removes the old NEMESIS package through its supported uninstall mechanism before installing auto-seat. Preserves and restores the saved state before the new startup service can run.
-5. Checks each operation and stops on failure without forcing removal, editing registry databases, or disabling firmware checks.
-6. Confirms there is one installed seat package and one registered startup service after installation and reboot.
-7. Confirms saved heating, ventilation, temperature-unit, startup and diagnostic options match the backup, and validates real controls while parked.
+Mutation requires a separate action and explicit token. It acquires the shared actuation lock,
+records manual priority, stops the old service, closes the app, and creates a new transaction at
+`/data/nemesis/backup/auto-seat-migration-v1`. Existing transactions are never overwritten.
+It makes two independently copied, byte-compared state snapshots (including hidden/nested
+regular files), saves the original reinstallable ZIP, syncs, and marks READY.
+Symlinks and special files are rejected. State is private root-owned data; restored bytes
+are preserved, while file modes use the migration's private umask.
 
-This migration procedure is not yet implemented. Do not ask an owner to uninstall their working package until backup, restore and recovery have been validated.
+Only after READY does it use supported `nemesis uninstall coldstart.heat`.
+The published original descriptor has no uninstall hooks; NEMESIS removes its Android
+APK as part of normal uninstall. This is why the separate recovery archive and external
+settings snapshot are mandatory. The app stores its settings in that external state tree;
+Android's private app directory is not treated as its settings store.
 
-## Build and submission requirements
+It restores and verifies state before `nemesis install candidate.zip`.
+The new service and write/actuation helper honor a durable HOLD outside either package tree.
+It verifies the APK, complete installed tree, helper bridge, settings bytes, package registry
+and exactly one new service. HOLD survives reboot and failures. Read-only settings display
+remains available. Acceptance requires another explicit command and checks, clears HOLD,
+and does not start services or send actuator calls.
 
-- Keep the exact existing firmware guard: `eng.vmadmin.20260903.161833`.
-- Describe compatibility as owner-tested on a US-market 2023 Hyundai Ioniq 5 Gen5W with NEMESIS and equipped seat functions; other cars, trims and firmware remain unverified. No EU or ccNC claim.
-- The current os/models wildcards do not express these restrictions; the firmware preinstall guard remains mandatory. Confirm portal compatibility metadata before submitting.
-- Adjust packaging instructions: the old text saying "Do not uninstall first" applies to same-ID updates, not this migration.
-- Mark migration artifacts as untested candidates until the vehicle test passes. The earlier successful 2.0 UI test does not validate this new installer.
-- Use a distinct candidate filename and retain the working public v2.0 assets.
-- Upload the inner installable ZIP with NEMESIS.data at its root, not the outer USB/source bundle.
-- Submit through https://portal.xwtk.cloud/nemesis with the public GitHub source URL and retained credits. A GitHub release alone does not submit a package to the store.
+## Recovery and interruption
 
-References:
+Recovery requires READY and matching snapshot copies and recovery ZIP.
+It takes the same lock, holds/stops the new package if present, removes it through NEMESIS,
+restores settings first, and reinstalls the original signed package only if absent.
+An already registered original is verified rather than overwritten.
+It then checks original APK, original tree, settings and single service.
+The manual-priority marker suppresses startup actuation in the current boot.
+The snapshots are retained.
+
+Failures stop with logs and keep the snapshot. Never use --force, edit registries, replace
+a signing key, bypass the firmware guard, delete the snapshot, or force-clear an actuation lock.
+Unknown orphan directories, mismatched old files, damaged bridge ownership, mismatching
+backup copies and an incomplete snapshot require review; recovery does not guess or delete them.
+A power cut before READY leaves the original package installed. After READY, use recovery,
+not another migrate run. An interrupted lock may require an approved normal reboot;
+the new HOLD remains effective across it. Do not reboot or relaunch the old package mid-transaction.
+
+## Validation boundary
+
+Host tests execute the real migration and lifecycle shell code with fake NEMESIS/Android
+commands and temporary files. They verify transaction ordering and failure behavior, not
+the head unit's actual NEMESIS version, toolbox behavior, power-loss guarantees or hardware.
+Recovery is automatically verified in simulation; it is not yet vehicle-verified.
+Follow [VEHICLE-TEST.md](VEHICLE-TEST.md) only after the owner approves vehicle testing.
+[STORE-SUBMISSION.md](STORE-SUBMISSION.md) describes the held submission.
+
+Upstream behavior was reviewed from:
 - https://github.com/xwtk/hmg_nemesis/blob/main/05-Packages.md
-- https://github.com/xwtk/hmg_nemesis/blob/main/08-Submit-a-Package.md
+- https://github.com/xwtk/hmg_nemesis/blob/main/06-Run-Scripts.md
+- https://github.com/xwtk/hmg_nemesis/blob/main/NEMESIS%20Source/native/pkg.c
+- https://github.com/xwtk/hmg_nemesis/blob/main/NEMESIS%20Source/native/svc.c
 
-## Signed APK provenance (store candidate)
-
-The packaging script now reads the existing published `downloads/Ioniq5-auto-seat-2.0.zip` (expected SHA-256 `32d6e014421bc2ff1104de3c004079377c39b8e62eae0e1c6f2d470e9aefb5ad`), extracts its sole APK, verifies the APK signature and expected signer certificate SHA-256 `6b555bd8920206e9588aaa68a63ed94ffdbebe68ad3a4c909b7d4ebb877bab59`, and copies those exact APK bytes into the candidate package. No new key or signing operation is used. The original archive and release are not modified. The packaging script still requires an available Android SDK apksigner for verification.
-
-A separate Maps HUD Suite private signing backup must **not** be assumed to belong to Auto Seat. Compare the public certificate fingerprint only, using `keytool -list -v -keystore /private/path/to/backup.jks` in a trusted private environment, and compare the SHA-256 to the Auto Seat expected fingerprint above. Never commit, upload, or expose keystore bytes or passwords. No matching backup has been verified in this workspace.
+The upstream source can differ from the installed version; that is a vehicle-test gate.

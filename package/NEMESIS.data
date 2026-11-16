@@ -10,6 +10,7 @@ models=any
 depends=!coldstart.heat
 preinstall=scripts/check-build.sh
 postinstall=scripts/post.sh
+preuninstall=scripts/preun.sh
 
 [app.0]
 kind=apk
