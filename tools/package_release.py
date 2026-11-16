@@ -28,7 +28,7 @@ def write_zip(path, files):
             entry.external_attr = (0o100755 if name.endswith('.sh') else 0o100644) << 16
             z.writestr(entry, file.read_bytes())
 
-inner = out / ('Ioniq5-auto-seat-' + version + '.zip')
+inner = out / ('Ioniq5-auto-seat-' + version + '-MIGRATION-UNTESTED.zip')
 write_zip(inner, [(p, p.relative_to(package).as_posix()) for p in package.rglob('*') if p.is_file()])
 # Public source allowlist: no keys, access files, local toolchains, or private backups.
 source_files = []
@@ -43,8 +43,19 @@ write_zip(source, source_files)
 descriptor = out / 'NEMESIS.data'
 descriptor.write_text('[nemesis]\nversion=1.0\ntype=install\npath=' + inner.name + '\n')
 readme = out / 'READ-ME.txt'
-readme.write_text('AUTO SEAT ' + version + ' — US ONLY / NOT EU — OWNER-TESTED RELEASE\n\nRead COMPATIBILITY.txt before installation. This targets a US-market 2023\nIoniq 5 Gen5W with NEMESIS already installed. Other cars are unverified.\n\nExtract this outer USB ZIP to the USB root. NEMESIS.data and ' + inner.name + '\nmust be directly at the root. Leave the inner ZIP compressed. Remove old\nNEMESIS.sh and NEMESIS.data before copying. Install while parked through\nNEMESIS. Do not uninstall first. Existing saved settings are retained.\n\nLauncher label: Auto Seat. Version information: ' + version + '.\nGraphite + Ford Blue centered UI, Classic heater red, balanced seat controls,\nand Blue Frame seat icon. Individual Apply buttons for heating and ventilation.\nThis test build uses internal Android versionCode 13; app version stays 2.0.\n\nCompatible only with build eng.vmadmin.20260903.161833.\nOwner reports this build works and looks great on the target car. Verify tabs,\nsaved settings,\nSave, heating/ventilation tests, All off, Back and Close while parked.\nVerify actual seat response and factory indicators.\n\nBased on HKMC Cold-start Heat by Gregory Taylor (eclipseempire), MIT licensed.\nSee LICENSE and CREDITS.md. Source and full instructions are included.\n')
-usb = out / ('Ioniq5-auto-seat-' + version + '-USB.zip')
+readme.write_text(
+    'AUTO SEAT ' + version + ' — UNTESTED MIGRATION CANDIDATE\\n\\n'
+    'DO NOT INSTALL ON A VEHICLE OR SUBMIT TO THE NEMESIS STORE.\\n'
+    'This candidate uses the new auto-seat package ID, which conflicts with\\n'
+    'the previously installed coldstart.heat package. Same-ID update instructions\\n'
+    'do not apply. A supported, backup-verified migration and recovery procedure\\n'
+    'must be developed and tested before the old package is removed.\\n\\n'
+    'The firmware guard requires eng.vmadmin.20260903.161833.\\n'
+    'Compatibility beyond the owner-tested US 2023 Ioniq 5 Gen5W is unverified.\\n'
+    'See STORE-MIGRATION.md in the GitHub source for migration requirements.\\n'
+)
+
+usb = out / ('Ioniq5-auto-seat-' + version + '-MIGRATION-UNTESTED-USB.zip')
 write_zip(usb, [(descriptor, 'NEMESIS.data'), (inner, inner.name), (readme, 'READ-ME.txt'), (source, 'source/' + source.name), (ROOT / 'LICENSE', 'LICENSE'), (ROOT / 'CREDITS.md', 'CREDITS.md'), (ROOT / 'COMPATIBILITY.txt', 'COMPATIBILITY.txt'), (ROOT / 'README.md', 'README.md')])
 checksums = out / 'SHA256SUMS.txt'
 checksums.write_text(''.join(hashlib.sha256(p.read_bytes()).hexdigest() + '  ' + p.name + '\n' for p in [inner, source, usb]))
