@@ -27,6 +27,14 @@ Existing coldstart.heat users must use the separate verified migration kit; this
 store ID is not a same-ID update. Do not tell them to uninstall first without backups.
 New installs and same-ID auto-seat upgrades also need validation before public release.
 
+## AI development disclosure
+
+Auto Seat's additions and modifications to the upstream project—including its interface, expanded controls, migration scripts and packaging—were written by OpenAI's ChatGPT/Codex AI under Josh Waldmire's direction. Josh supplied requirements and reported vehicle behavior; he has not independently reviewed or verified the source code as a human programmer. No independent human programmer has reviewed or verified these Auto Seat changes.
+
+Automated checks and owner-reported vehicle testing are not a human code review or independent verification of correctness, safety or reliability. The new package migration remains unverified on the actual head unit. Original upstream code remains credited to Gregory Taylor (eclipseempire); this AI disclosure does not attribute his work to AI or imply his review or endorsement of the changes.
+
+Include this disclosure in the store listing and maintainer submission. Do not describe the Auto Seat changes as human-reviewed or independently verified unless a documented human review takes place.
+
 ## Release gates
 
 - Passing CI at the exact submitted commit and archived SHA256SUMS.
