@@ -1,5 +1,7 @@
 # NEMESIS submission draft — held for vehicle validation and owner approval
 
+> **AI-written Auto Seat changes · No human code review.** Developed with OpenAI ChatGPT/Codex under Josh Waldmire’s direction. Original upstream authorship is credited below.
+
 | Portal field | Proposed value |
 | --- | --- |
 | Package ID | auto-seat (confirm portal availability before upload) |
