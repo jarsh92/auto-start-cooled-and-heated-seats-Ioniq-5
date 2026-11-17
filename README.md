@@ -56,9 +56,17 @@ This is an unofficial community project, not affiliated with Hyundai. Compatibil
 
 ### Existing-app update compatibility
 
-The Android ID `com.nemesis.coldstart`, NEMESIS ID `coldstart.heat`, existing state directory, and synchronization paths are retained for update compatibility. Renaming those identifiers would risk duplicate startup services or losing access to existing settings. Source, APK, service filename, and release filenames use Auto Seat.
+The store candidate uses NEMESIS package ID `auto-seat`, display name **Auto Seat**, and service `auto-seat/apply`. It conflicts with the original `coldstart.heat` package; changing the store ID requires the verified migration procedure, rather than a same-ID update.
 
-## Download and install
+The Android application ID `com.nemesis.coldstart`, existing settings directory and synchronization paths are retained deliberately. The original signed APK calls an absolute legacy helper path, so an owned compatibility helper remains there without registering another package or service. These internal compatibility names do not change the store name. See [STORE-MIGRATION.md](STORE-MIGRATION.md).
+
+## Current store candidate and vehicle preflight
+
+The new `auto-seat` installer and migration are **not yet validated on the vehicle**. Build the candidate using the steps below; do not upload it to the store as a tested release. Run the default read-only preflight first, then review its log before migration. Follow [VEHICLE-TEST.md](VEHICLE-TEST.md), and use the candidate, source and checksums from the same build.
+
+## Original released package: download and same-ID update
+
+The instructions in this section apply only to the historical `coldstart.heat` release. They do not migrate it to `auto-seat`.
 
 Use the supplied **Ioniq5-auto-seat-2.0-USB.zip**. It contains the app package, matching installation descriptor, compatibility guide, and source. Download the [2.0 USB installer](downloads/Ioniq5-auto-seat-2.0-USB.zip?raw=true) and check its [SHA-256 checksum](downloads/SHA256SUMS.txt).
 
@@ -79,17 +87,26 @@ Android may reject a downgrade. If rollback is needed, use a correctly signed hi
 
 Requires a JDK with `java com.sun.tools.javac.Main`, Android platform 30, and Android build-tools **30.0.3** (including legacy `dx`, required for DEX 035 / Android 4.4 compatibility).
 
-Set `ANDROID_SDK`, `SIGNING_KEY`, `KEY_ALIAS`, `SIGNING_STORE_PASSWORD`, and `SIGNING_KEY_PASSWORD` privately in your environment. The original private key is **not** included. The build script verifies the installed-app certificate fingerprint and refuses a mismatched key. No replacement key is generated automatically.
+### Reproduce the store candidate without a signing key
+
+Set `ANDROID_SDK` to an SDK containing platform 30 and build-tools 30.0.3, then run:
 
 ```sh
-bash tools/build_apk.sh
 python3 tests/check_commands.py
+python3 tests/check_migration.py
 python3 tests/check_startup_priority.py
 bash tools/make_package.sh
+python3 tests/check_package.py
 ```
 
-`tools/make_package.sh` copies the signed APK, builds the inner NEMESIS package, creates a public source archive, and produces the USB bundle under `dist/`.
+The package builder verifies the original release checksum, Android signing certificate and KitKat v1 signature. It copies the original signed APK unchanged, then creates the new NEMESIS package, source archive, migration/preflight kit and checksums under `dist/`. No signing key is needed for this packaging route. The migration candidate remains marked `MIGRATION-UNTESTED` until vehicle testing is complete.
+
+### Compile changed Android source
+
+`tools/build_apk.sh` is for Android app development. It requires `ANDROID_SDK`, `SIGNING_KEY`, `KEY_ALIAS`, `SIGNING_STORE_PASSWORD`, and `SIGNING_KEY_PASSWORD` set privately. The original private key is not included. The script verifies the installed-app certificate fingerprint and refuses a mismatched key. No replacement key is generated automatically.
+
+The candidate packager intentionally continues to use the immutable released APK, even after a source build; it does not silently substitute a newly built app. CI separately compiles source and checks KitKat-compatible DEX output without signing.
 
 ## Validation and release status
 
-See [VALIDATION-2.0.md](VALIDATION-2.0.md). The owner reports that this build works and looks great on the intended head unit. The supplied photos show Heating, Ventilation, and Settings on the car; detailed per-feature and long-term reliability results are not independently documented. Please report the model, trim, firmware, and observed behavior with any issue, without uploading private vehicle identifiers or signing material.
+For migration evidence and outstanding vehicle checks, see [MIGRATION-VALIDATION.md](MIGRATION-VALIDATION.md). The following refers to the original released app, not the new package migration. See [VALIDATION-2.0.md](VALIDATION-2.0.md). The owner reports that this build works and looks great on the intended head unit. The supplied photos show Heating, Ventilation, and Settings on the car; detailed per-feature and long-term reliability results are not independently documented. Please report the model, trim, firmware, and observed behavior with any issue, without uploading private vehicle identifiers or signing material.
