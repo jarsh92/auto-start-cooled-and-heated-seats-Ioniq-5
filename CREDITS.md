@@ -1,5 +1,7 @@
 # Credits and upstream license
 
+> **AI-written Auto Seat changes · No human code review.** Developed with OpenAI ChatGPT/Codex under Josh Waldmire’s direction. Original upstream authorship is credited below.
+
 **Auto Seat is based on [HKMC Cold-start Heat](https://github.com/eclipseempire/hkmc-coldstart-heat) by Gregory Taylor (eclipseempire).** The recovered source identifies upstream base commit `82f86f11eee50a92329be96760770362668f6d18`.
 
 The original package provided automatic heated-seat and steering-wheel control. Auto Seat extends that work for a ventilated-seat-equipped trim and adds controls, startup handling, and a new interface. Thank you, Gregory, for sharing both the package and guidance for extending it.
