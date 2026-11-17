@@ -6,6 +6,12 @@ Temperature-based startup heating and ventilation for a NEMESIS-equipped Hyundai
 
 <img src="artwork/auto-seat-blue-frame.png" alt="Auto Seat Blue Frame icon" width="128">
 
+## AI development disclosure
+
+Auto Seat's additions and modifications to the upstream project—including its interface, expanded controls, migration scripts and packaging—were written by OpenAI's ChatGPT/Codex AI under Josh Waldmire's direction. Josh supplied requirements and reported vehicle behavior; he has not independently reviewed or verified the source code as a human programmer. No independent human programmer has reviewed or verified these Auto Seat changes.
+
+Automated checks and owner-reported vehicle testing are not a human code review or independent verification of correctness, safety or reliability. The new package migration remains unverified on the actual head unit. Original upstream code remains credited to Gregory Taylor (eclipseempire); this AI disclosure does not attribute his work to AI or imply his review or endorsement of the changes.
+
 ## Credit
 
 Auto Seat builds on **[HKMC Cold-start Heat](https://github.com/eclipseempire/hkmc-coldstart-heat)** by **Gregory Taylor (eclipseempire)**, originally based on commit `82f86f11eee50a92329be96760770362668f6d18`. His original work provided automatic heated-seat and steering-wheel control; Auto Seat extends that foundation with ventilated-seat controls for an equipped trim, additional startup handling, and a redesigned interface. Thank you for sharing the original work and extension guidance.
