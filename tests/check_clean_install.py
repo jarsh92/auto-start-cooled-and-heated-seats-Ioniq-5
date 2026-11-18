@@ -17,6 +17,7 @@ with tempfile.TemporaryDirectory(prefix='clean-seat-') as tmp:
     paths={'/data/nemesis':(f/'data').as_posix(),'/dev/seat-comfort':(f/'locks').as_posix()}
     calls=f/'calls'
     def adapt(code):
+        code=re.sub(r'(?m)^export PATH=.*$','',code)
         for old,new in paths.items():code=code.replace(old,new)
         code=code.replace(prefix,'')
         code=code.replace('export PATH=/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin','')
