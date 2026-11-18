@@ -1,0 +1,4 @@
+bc9757a93c362b3a0a3b3debd768020a440800c2ccb32593d8fb7e811cf9e1ee  Auto-Seat-2.0-autoseat.heat-USB.zip
+de035aa5fa21af13f3357d840e8c2ede2f73148934af69fde3987593cb4c3de6  autoseat.heat-2.0.zip
+c4de9750fa433451b9d185dd775a06d25ff86a27256efc0c0f564a65bb95ff09  Auto-Seat-2.0-autoseat.heat-source.zip
+8539f2d2724456e93742b0f3c80ecd9b776e642e4e0ea64c76d74e444a011182  build-validation.json

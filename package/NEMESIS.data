@@ -1,13 +1,13 @@
 [nemesis]
 version=1.1
-id=auto-seat
+id=autoseat.heat
 name=Auto Seat
 type=application,service
 package-version=2.0
 short-desc="Temperature-based startup heat and ventilation"
 os=any
 models=any
-depends=!coldstart.heat
+depends=!coldstart.heat,!auto-seat
 preinstall=scripts/check-build.sh
 postinstall=scripts/post.sh
 preuninstall=scripts/preun.sh

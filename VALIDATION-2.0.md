@@ -1,36 +1,21 @@
-# Auto Seat 2.0 validation
+# Auto Seat 2.0 validation — AI-written changes
 
-## Completed off-car
+No independent human code review has been completed. Josh directed the AI development and performed owner vehicle testing; he is not claiming programmer review.
 
-- Compiled against Android platform 30, min/target API 19, using Android build-tools 30.0.3 and legacy dx.
-- Compiled DEX header is `dex\n035\0` for the KitKat head unit.
-- APK signature verification passes, including v1 (required by KitKat) and v2.
-- Signing certificate SHA-256 matches the installed personal build: `6b555bd8920206e9588aaa68a63ed94ffdbebe68ad3a4c909b7d4ebb877bab59`.
-- ZIP alignment check passes.
-- Manifest: versionName `2.0`, versionCode `13`, application/activity launcher labels `Auto Seat`.
-- Command regression passes: 48 original combinations plus 8 isolated single-seat heating levels, short requests, save/read, logging, shared lock, error cleanup, Off, invalid settings.
-- Startup/manual-priority regression passes: delayed startup cannot override manual heat; saving works without mv; normal startup ventilates.
-- Startup service, build guard, and post-install script remain byte-identical to 1.7.2.
-- The command helper adds driver_heat and passenger_heat. Each accepts 0..3, maps Off to enum 2 and heat levels to 6/7/8, and retains shared locks/manual-priority handling. Regression tests verify no extra seat or steering-wheel command is sent and invalid levels are rejected.
-- Android layout tests also exercise level selection, isolated Apply heating, ventilation Apply, Off labels/commands, and tab navigation without sending vehicle commands.
-- USB descriptor, inner package, embedded APK, source archive, and secret-exclusion checks pass.
+## Current clean release: autoseat.heat
 
-## Owner's in-car report
+On November 17, 2026 the USB installer returned CLEAN INSTALL VERIFIED and exit 0 on the intended US 2023 IONIQ 5 Limited, Gen5W, build `eng.vmadmin.20260903.161833`, NEMESIS 1.16.7. It verified new package registration, no conflicting old package, original APK bytes, one `autoseat.heat/apply` service and the owned helper. Josh subsequently reported everything worked in the car and no current issue needed attention after being asked to check restart/startup and parked heat/ventilation/Off/wheel behavior. This is an owner report; no independent per-control instrumented report, broad compatibility study or long-term test is claimed.
 
-On November 13, 2026, Josh Waldmire reported: “It works and looks great.” The supplied photos show the installed Heating, Ventilation and Settings screens on the target US-market Ioniq 5. This is an owner-reported success on one vehicle; the photos alone do not prove every actuator, startup cycle, threshold, or long-term behavior. No additional vehicle/firmware compatibility is claimed.
+The release APK is byte-identical to the originally signed 2.0 app. The source/runtime hash inventory pins the owner-tested clean package and USB scripts. Documentation and attribution changes do not alter that runtime. No new app compilation, key generation or signing is used for this release.
 
-Android 4.4 Robolectric tests measured the real MainActivity layout at 1280×620, 1280×480 and 1920×640, checked navigation/footer bounds and body space, and exercised individual Apply/Off and tab interactions without commanding a vehicle. These checks passed before the tested APK was delivered.
+Local host checks covered shell syntax; firmware/old-helper guards; fresh defaults and exact helper creation with old migration HOLD present; read/save, isolated heating/ventilation, Off and bad input; disabled startup and warm startup ventilation with old HOLD present; owned helper removal/unknown-file refusal; installer conflict guards; wrapper logging/exit status; and nested archives/unchanged APK. Android and NEMESIS commands were simulated and did not contact the car.
 
-## Recommended checks for subsequent installs
+CI additionally runs the command-generation regression, delayed startup/manual-priority regression, portable clean lifecycle tests, actual POSIX host permission-mask checks, deterministic archive/runtime identity tests and the original APK's expected certificate/v1 signature/DEX verification. Source compilation remains separate from distributing the original signed app.
 
-1. Confirm installation updates the existing app; launcher label is Auto Seat with the Blue Frame icon.
-2. Check the panel is centered and comfortable (design target 5.5–6 inches; not physically calibrated).
-3. Open Heating, Ventilation, and Settings; check all controls are reachable by scrolling with no clipping or overlap.
-4. Confirm previous settings loaded; adjust a value, Save, close, reopen, and confirm persistence.
-5. Test individual Apply driver/passenger heating and ventilation separately while parked. Confirm the other seat and steering wheel are unchanged. Check factory indicators and warmth/airflow. Cycle a seat to Off and press its individual Off button. Selection changes alone must not actuate a seat.
-6. Test All off, Back, and Close.
-7. Check startup operation and manual priority over a delayed startup action.
+## Limits and historical failures
 
-## Publication status
+The abandoned `auto-seat` transaction migration was not the successful installation route. An initial APK install failed; a permission-mask correction allowed original app reinstall, but a later settings restore failed. A read-only vehicle check then verified the original package and all 11 saved settings. The final successful route was owner-requested normal uninstall followed by clean `autoseat.heat` installation, without settings migration/HOLD. Do not use historical migration/recovery bundles as release installers.
 
-The owner explicitly authorized public GitHub publication after reporting the in-car result. The published app binary is the same signed Android version 2.0 / internal code 13 tested by the owner. Publication updates documentation and packaging metadata only; it does not rebuild the APK.
+Host tests do not reproduce the exact Android framework, physical seat actuators or installed NEMESIS binary. The inherited private umask was a likely install-failure mechanism based on code inspection; an instrumented on-unit root-cause proof was not collected. Exact-state migration is not promised, and interrupted firmware/core/storage recovery is outside this package's scope. Other trims/models/markets, IONIQ 6 and automatic equipment detection remain unverified. Private vehicle logs and settings are deliberately excluded from public source/assets.
+
+This post was prepared and posted with ChatGPT.

@@ -11,7 +11,7 @@ fi
 # Refuse an unregistered legacy tree rather than overwrite it.
 LEGACY=/data/nemesis/apps/coldstart.heat
 if [ -e "$LEGACY" ] || [ -L "$LEGACY" ]; then
-    echo "Legacy path exists; use the reviewed migration procedure."
+    echo "Old Auto Seat package or helper directory still exists. Uninstall it through NEMESIS first; do not delete it manually."
     exit 1
 fi
 exit 0

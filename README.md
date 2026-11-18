@@ -1,120 +1,65 @@
-# Auto Seat 2.0
+# Auto Seat 2.0 — AI-written enhancements
 
-> **AI-written Auto Seat changes · No human code review.** Developed with OpenAI ChatGPT/Codex under Josh Waldmire’s direction. Original upstream authorship is credited below.
+> **Auto Seat additions were written by OpenAI ChatGPT/Codex under Josh Waldmire's direction. No independent human programmer has reviewed these changes.** Josh is the project organizer and vehicle tester, not the programmer. Original heating-project authorship belongs to Gregory Taylor (eclipseempire), credited below.
 
-> PR #2 prepares the new NEMESIS ID `auto-seat`. The original released APK is unchanged, but migration packaging is not yet vehicle-validated. Existing `coldstart.heat` owners must follow [VEHICLE-TEST.md](VEHICLE-TEST.md) after approval. Same-ID update instructions below describe the original released package only. See [STORE-MIGRATION.md](STORE-MIGRATION.md) and [STORE-SUBMISSION.md](STORE-SUBMISSION.md).
-
-Temperature-based startup heating and ventilation for a NEMESIS-equipped Hyundai Ioniq 5 Gen5W head unit. **2.0 is released following the owner's successful in-car report on the intended US-market vehicle. Other cars and firmware remain unverified.** The launcher label is simply **Auto Seat**.
+Automatic startup heating and ventilation, with individual seat controls, for the tested US-market Hyundai IONIQ 5 Gen5W head unit running NEMESIS. The visible app name is **Auto Seat**; the current NEMESIS package ID is **`autoseat.heat`**.
 
 <img src="artwork/auto-seat-blue-frame.png" alt="Auto Seat Blue Frame icon" width="128">
 
-## AI development disclosure
+Josh's main goal was to add temperature-based seat ventilation for equipped vehicles to the original heating-focused project. ChatGPT/Codex wrote the Auto Seat-specific code, interface changes, package scripts, tests and documentation at his direction. Josh supplied requirements, design choices and hands-on vehicle feedback. Automated tests and owner testing are not independent human code review.
 
-Auto Seat's additions and modifications to the upstream project—including its interface, expanded controls, migration scripts and packaging—were written by OpenAI's ChatGPT/Codex AI under Josh Waldmire's direction. Josh supplied requirements and reported vehicle behavior; he has not independently reviewed or verified the source code as a human programmer. No independent human programmer has reviewed or verified these Auto Seat changes.
+## Download and install
 
-Automated checks and owner-reported vehicle testing are not a human code review or independent verification of correctness, safety or reliability. The new package migration remains unverified on the actual head unit. Original upstream code remains credited to Gregory Taylor (eclipseempire); this AI disclosure does not attribute his work to AI or imply his review or endorsement of the changes.
+**[Download the current Auto Seat USB installer](https://github.com/jarsh92/auto-start-cooled-and-heated-seats-Ioniq-5/releases/download/v2.0-autoseat.heat-r1/Auto-Seat-2.0-autoseat.heat-USB.zip)**
+
+1. Extract **all contents** of this one ZIP directly onto an otherwise empty USB. `NEMESIS.data` and `NEMESIS.sh` must be at the top level. Leave the inner package ZIP compressed.
+2. If an older Auto Seat is installed, use **NEMESIS → My Packages → Auto Seat → Uninstall** first. Removing only the Android app icon does not remove its NEMESIS service/package. Existing users of this exact `autoseat.heat` version should not reinstall unnecessarily.
+3. While parked with Android fully started and NEMESIS already working, insert the prepared USB and approve **Execute**. The script installs and verifies the expected app, helper and single service. Keep USB and power connected until it finishes.
+4. Open Auto Seat, review settings and test controls while parked. Existing settings may remain; missing settings receive defaults. You can reset them in the app. A normal restart lets you check startup behavior under your chosen thresholds.
+5. The USB contains **`Auto-Seat-Clean-Install.log`**. If installation stops, keep the files unchanged and return that log before retrying. A failure also saves `Auto-Seat-Clean-Install-Android.log` when Android logcat is available. Logs may contain private information; review/redact them before posting publicly.
+
+The installer does **not** automatically uninstall packages, migrate settings, run a backup-restore transaction or use the retired migration HOLD workflow. Historical `auto-seat` migration/recovery ZIPs are not this release. Old backups are untouched. Use normal NEMESIS operations rather than deleting package directories or bypassing guards.
+
+Normal removal: NEMESIS My Packages → Auto Seat → Uninstall. Its owned helper is removed; settings are retained. No firmware update or NEMESIS installation is included.
+
+## Tested status and compatibility
+
+On November 17, 2026, clean installation succeeded on Josh's **US 2023 IONIQ 5 Limited, Gen5W**, internal build **`eng.vmadmin.20260903.161833`**, with **NEMESIS 1.16.7**. The installer verified registration, original APK bytes, owned helper and one service. Josh subsequently reported everything works in the car and he found nothing needing attention. This is one owner's report, not independent review, a multi-vehicle study or a long-term reliability guarantee.
+
+| Vehicle / platform | Status |
+| --- | --- |
+| Josh's US 2023 IONIQ 5 Limited, exact build above | Clean installation verified; owner reports working operation |
+| Another IONIQ 5, even with the same build | Unverified; region, model year, trim and equipment matter |
+| IONIQ 6 | Interest/adaptation welcome; **not tested or supported by this release** |
+| Other firmware, non-US markets, ccNC, other Hyundai/Kia/Genesis models | Not validated or supported by this package |
+
+The guard checks the exact internal build, not trim, market or equipment. Passing it does not prove another car is compatible. Heating, ventilation and the heated wheel require the corresponding hardware. **Do not remove the firmware guard or activate controls to discover whether equipment exists.** Ventilation-equipment detection and trim-based enable/disable controls are not yet implemented; an unequipped vehicle needs an independently validated adaptation.
+
+The signed Auto Seat 2.0 APK is reused unchanged. Executable package and USB files are checked against hashes of the vehicle-tested clean build; public credits/instructions can change independently. See [VALIDATION-2.0.md](VALIDATION-2.0.md).
+
+## AI development, reuse and help with other cars
+
+You are welcome to inspect, criticize, fork and adapt the project under its [MIT license](LICENSE), including by using AI tools to take it apart, explain it, find defects or help adapt it to your car. Preserve the original license and attribution. AI suggestions can be wrong; validate changes against the actual firmware, equipment and vehicle behavior before installation.
+
+Josh welcomes issues and contributions, including interest from IONIQ 6 owners. Include model/year/trim/market, head-unit type, complete software version, NEMESIS version and the observed behavior. Do not upload keys or private vehicle data. We can try to investigate and help develop adaptations, but cannot promise compatibility, response time or a working port.
+
+**Development assistance and proposed fixes from this project will be AI-generated with ChatGPT/Codex under Josh's direction, not independently written or reviewed by a human automotive/software engineer.** AI cannot independently validate a physical vehicle. Testing evidence and limits will be documented. Human technical review is welcome, but none has been completed for these Auto Seat changes.
+
+## Planned future work — not included in 2.0
+
+- Read-only detection of ventilated-seat equipment, if a reliable equipment signal is found.
+- A remembered manual ventilation enable/disable choice for different trims or uncertain detection, honored by the UI and startup service.
+- UI layout, wording and usability refinements.
+- Investigation of other vehicles, including IONIQ 6, with separate firmware/equipment validation. These are plans, not compatibility commitments or delivery-date promises.
 
 ## Credit
 
-Auto Seat builds on **[HKMC Cold-start Heat](https://github.com/eclipseempire/hkmc-coldstart-heat)** by **Gregory Taylor (eclipseempire)**, originally based on commit `82f86f11eee50a92329be96760770362668f6d18`. His original work provided automatic heated-seat and steering-wheel control; Auto Seat extends that foundation with ventilated-seat controls for an equipped trim, additional startup handling, and a redesigned interface. Thank you for sharing the original work and extension guidance.
+Based on **[HKMC Cold-start Heat](https://github.com/eclipseempire/hkmc-coldstart-heat)** by **Gregory Taylor (eclipseempire)**, upstream base commit `82f86f11eee50a92329be96760770362668f6d18`. His original work focused on startup heated seats and steering-wheel heating. The AI disclosure does not attribute his original code to AI or imply his review/endorsement of the additions.
 
-It runs on **[NEMESIS](https://github.com/xwtk/hmg_nemesis)** by Gor Mirzoyan (xwtk). The original detection pattern credits [dibble9012/hkmc-carplay-auto-display](https://github.com/dibble9012/hkmc-carplay-auto-display). See [LICENSE](LICENSE) for Gregory Taylor's retained MIT copyright and license, and [UPSTREAM-README.md](UPSTREAM-README.md) for the upstream documentation. NEMESIS is a separate dependency with its own license and is not bundled here.
+[NEMESIS](https://github.com/xwtk/hmg_nemesis) is by Gor Mirzoyan (xwtk), separate and not bundled. The original detection pattern credits [dibble9012/hkmc-carplay-auto-display](https://github.com/dibble9012/hkmc-carplay-auto-display). See [CREDITS.md](CREDITS.md).
 
-## What's new in 2.0
+## Source and package identity
 
-- Centered rounded graphite panel, capped at 600 dp and constrained to the available screen width, instead of full-screen stretched controls. Physical width must be checked on the head unit; the design target is approximately 5.5–6 inches.
-- Graphite + Ford Blue palette, warm white text, rounded controls, blue navigation/ventilation, and Classic heater red (`#C62828`) for active heating controls.
-- Matching driver/passenger columns on both pages, consistent On / Off labels, and individual Apply buttons for both heating and ventilation.
-- Matching **Blue Frame** launcher/header icon: white seat outline on graphite with a blue inset border.
-- Heating, Ventilation, and Settings tabs, explicit Close, and persistent All off retained.
-- Approved balanced UI build (Android internal code 13): fixed-height spacers prevent controls being pushed below the window. Version and launcher label remain 2.0 and Auto Seat, respectively.
-- Startup service, build guard, and post-install defaults remain unchanged. The command helper adds isolated single-seat heating actions using the existing verified enum mapping, locks, and manual-priority handling.
+See [BUILDING.md](BUILDING.md). Package `autoseat.heat` registers `autoseat.heat/apply`. The unchanged Android ID is `com.nemesis.coldstart`; its fixed helper path requires an owned helper directory called `coldstart.heat`. That directory is not a second registered package/service. See [PACKAGE-LAYOUT.md](PACKAGE-LAYOUT.md).
 
-## Compatibility — US market only
-
-**This Auto Seat 2.0 package targets Josh's US-market 2023 Hyundai Ioniq 5 with an Android-based Gen5W head unit and NEMESIS already installed. It is not a general installer for every Ioniq 5. The owner reported that the installed 2.0 build works and looks great on this car on November 13, 2026.**
-
-| Vehicle / region / software | Status for this package |
-| --- | --- |
-| US-market 2023 Ioniq 5, Gen5W, inspected build `eng.vmadmin.20260903.161833` | Owner-reported working on the target car, November 13, 2026. |
-| Another US-market Ioniq 5 with the same exact internal build | Unverified. Matching the build is necessary for installation, but does not establish compatibility with its trim or equipment. |
-| Other US Ioniq 5 model years, trims, or software builds | Not validated. The installer refuses a different internal build. Do not assume compatibility from the Ioniq 5 name alone. |
-| EU / European-market Ioniq 5 | **Not supported by this package. US firmware work does not validate EU firmware.** |
-| Canadian or other non-US-market Ioniq 5 | Not supported by this package. |
-| Ioniq 5 with ccNC or another head-unit platform | Not supported by this Gen5W package. |
-| Other Hyundai, Kia, or Genesis models | Not supported by this package; the original upstream project's broader description is not a compatibility promise for Auto Seat. |
-
-### Required software and equipment
-
-- **Region: US (United States), not EU.** The dashboard temperature unit (°F or °C) is a separate setting; changing it does not make EU firmware compatible.
-- **Head unit: Android-based Gen5W**, commonly identified by `S5W_M` in its software information; not ccNC.
-- **NEMESIS must already be installed and functioning.** This ZIP does not install NEMESIS or update Hyundai firmware.
-- **Exact internal Android build required:** `ro.build.version.incremental=eng.vmadmin.20260903.161833`. This is an internal build identifier, not a substitute for the full region-specific Hyundai software/version string shown in the settings screen.
-- The original inspected framework build is dated September 3, 2026. A date alone, or a similar-looking software version, is not sufficient to establish compatibility.
-- Heating, ventilated seats, and heated steering-wheel controls require the corresponding hardware to be fitted. Auto Seat does not add ventilation or heating hardware to trims that lack it. Leave unsupported features Off; additional trims still require validation.
-
-### Checking another car
-
-1. Open the head unit's software/version information screen and record the complete software version, model information, vehicle model year, trim, and market region. A photo of that screen is useful when requesting compatibility review.
-2. Confirm the unit is Gen5W and NEMESIS is already working. Do not install this package merely because the car is called an Ioniq 5.
-3. The installer checks the internal Android build and refuses a mismatch. It does **not** independently validate market region, model year, trim, equipment, or every framework file. Passing the guard is not a guarantee for another car.
-4. If it reports an unsupported build, stop and keep the message for review. Do not remove the build guard or change firmware to force installation.
-
-This is an unofficial community project, not affiliated with Hyundai. Compatibility testing on other cars is welcome, but support should be documented only after verifying their region, firmware, equipment, and behavior.
-
-### Existing-app update compatibility
-
-The store candidate uses NEMESIS package ID `auto-seat`, display name **Auto Seat**, and service `auto-seat/apply`. It conflicts with the original `coldstart.heat` package; changing the store ID requires the verified migration procedure, rather than a same-ID update.
-
-The Android application ID `com.nemesis.coldstart`, existing settings directory and synchronization paths are retained deliberately. The original signed APK calls an absolute legacy helper path, so an owned compatibility helper remains there without registering another package or service. These internal compatibility names do not change the store name. See [STORE-MIGRATION.md](STORE-MIGRATION.md).
-
-## Current store candidate and vehicle preflight
-
-The new `auto-seat` installer and migration are **not yet validated on the vehicle**. Build the candidate using the steps below; do not upload it to the store as a tested release. Run the default read-only preflight first, then review its log before migration. Follow [VEHICLE-TEST.md](VEHICLE-TEST.md), and use the candidate, source and checksums from the same build.
-
-## Original released package: download and same-ID update
-
-The instructions in this section apply only to the historical `coldstart.heat` release. They do not migrate it to `auto-seat`.
-
-Use the supplied **Ioniq5-auto-seat-2.0-USB.zip**. It contains the app package, matching installation descriptor, compatibility guide, and source. Download the [2.0 USB installer](downloads/Ioniq5-auto-seat-2.0-USB.zip?raw=true) and check its [SHA-256 checksum](downloads/SHA256SUMS.txt).
-
-1. Confirm your car matches the compatibility section above. Park the car. Remove old `NEMESIS.sh` and `NEMESIS.data` from the USB root.
-2. Extract the **outer USB ZIP** to the USB root. `NEMESIS.data` and `Ioniq5-auto-seat-2.0.zip` must be directly at the root. Leave the inner ZIP compressed.
-3. Do not copy the outer folder itself onto the drive: the files must be at the USB root, not one folder deeper. Eject the drive safely from the computer.
-4. Insert the USB and approve the NEMESIS update. Wait for completion. **Do not uninstall the existing app first.**
-5. Open Auto Seat and verify the icon, centered panel, matching Heating/Ventilation layouts, consistent On / Off wording, saved values, Save startup settings, Back, and Close.
-6. On Heating, select a driver level and press Apply driver heating. Check the factory indicator and warmth. Repeat for the passenger. Each individual Apply changes only that seat and leaves the other seat and steering wheel unchanged.
-7. Check the corresponding ventilation Apply buttons and physical airflow. Selecting Off changes the individual Apply label to Turn [driver/passenger] seat Off; pressing that button stops either heat or ventilation on that seat. Changing the level alone sends no command.
-8. Test Test heating now, Test ventilation now, and All Off while parked. Verify the factory indicators and physical seat response; a successful command response alone does not confirm physical actuation.
-
-Individual Apply commands and tests apply the displayed selections immediately, ignore thresholds, and do not save settings. Off selections skip that seat during mode tests/startup. All off stops both front seats and the steering-wheel heater. Save stores preferences without immediately applying them. Startup runs once per head-unit start, not continuously; manual commands take priority until the next head-unit reboot.
-
-Android may reject a downgrade. If rollback is needed, use a correctly signed higher-version rollback build rather than uninstalling to force a downgrade.
-
-## Build
-
-Requires a JDK with `java com.sun.tools.javac.Main`, Android platform 30, and Android build-tools **30.0.3** (including legacy `dx`, required for DEX 035 / Android 4.4 compatibility).
-
-### Reproduce the store candidate without a signing key
-
-Set `ANDROID_SDK` to an SDK containing platform 30 and build-tools 30.0.3, then run:
-
-```sh
-python3 tests/check_commands.py
-python3 tests/check_migration.py
-python3 tests/check_startup_priority.py
-bash tools/make_package.sh
-python3 tests/check_package.py
-```
-
-The package builder verifies the original release checksum, Android signing certificate and KitKat v1 signature. It copies the original signed APK unchanged, then creates the new NEMESIS package, source archive, migration/preflight kit and checksums under `dist/`. No signing key is needed for this packaging route. The migration candidate remains marked `MIGRATION-UNTESTED` until vehicle testing is complete.
-
-### Compile changed Android source
-
-`tools/build_apk.sh` is for Android app development. It requires `ANDROID_SDK`, `SIGNING_KEY`, `KEY_ALIAS`, `SIGNING_STORE_PASSWORD`, and `SIGNING_KEY_PASSWORD` set privately. The original private key is not included. The script verifies the installed-app certificate fingerprint and refuses a mismatched key. No replacement key is generated automatically.
-
-The candidate packager intentionally continues to use the immutable released APK, even after a source build; it does not silently substitute a newly built app. CI separately compiles source and checks KitKat-compatible DEX output without signing.
-
-## Validation and release status
-
-For migration evidence and outstanding vehicle checks, see [MIGRATION-VALIDATION.md](MIGRATION-VALIDATION.md). The following refers to the original released app, not the new package migration. See [VALIDATION-2.0.md](VALIDATION-2.0.md). The owner reports that this build works and looks great on the intended head unit. The supplied photos show Heating, Ventilation, and Settings on the car; detailed per-feature and long-term reliability results are not independently documented. Please report the model, trim, firmware, and observed behavior with any issue, without uploading private vehicle identifiers or signing material.
+This post was prepared and posted with ChatGPT.

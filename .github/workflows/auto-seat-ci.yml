@@ -1,169 +1,82 @@
-name: Auto Seat 2.0 validation
+name: Auto Seat clean release validation
 
 on:
-  push:
-    branches: [main, package/auto-seat-store]
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  regression:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - name: Shell syntax
+      - name: Shell syntax and clean package regression
         run: |
-          bash -n tools/build_apk.sh tools/make_package.sh
-          for script in package/scripts/*.sh package/svc/*.sh migration/*.sh; do sh -n "$script"; done
-      - name: Seat command regression
-        run: python3 tests/check_commands.py
-      - name: Migration and recovery fault injection
-        run: python3 tests/check_migration.py
-      - name: Startup/manual priority regression
-        run: python3 tests/check_startup_priority.py
-      - name: Descriptor and migration safety
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('package/NEMESIS.data').read_text()
-          assert 'id=auto-seat' in p
-          assert 'depends=!coldstart.heat' in p
-          assert 'preinstall=scripts/check-build.sh' in p
-          guard=Path('package/scripts/check-build.sh').read_text()
-          assert 'eng.vmadmin.20260903.161833' in guard
-          release=Path('tools/package_release.py').read_text()
-          assert 'MIGRATION-UNTESTED' in release
-          assert 'DO NOT INSTALL ON A VEHICLE' in release
-          PY
-
-  android-toolchain:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Install pinned legacy Android tools
-        run: |
-          export ANDROID_HOME=/usr/local/lib/android/sdk
-          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
-          test -n "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
-          "$SDKMANAGER" --install 'platforms;android-30' 'build-tools;30.0.3'
-          test -f "$ANDROID_HOME/platforms/android-30/android.jar"
-          test -x "$ANDROID_HOME/build-tools/30.0.3/dx"
-          "$ANDROID_HOME/build-tools/30.0.3/dx" --version
-      - name: Verify Android source compiles without signing
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-        run: |
-          mkdir -p /tmp/auto-seat-classes
-          javac -source 8 -target 8 -bootclasspath "$ANDROID_HOME/platforms/android-30/android.jar" -d /tmp/auto-seat-classes $(find app/src -name '*.java')
-          "$ANDROID_HOME/build-tools/30.0.3/dx" --dex --min-sdk-version=19 --output=/tmp/auto-seat-classes.dex /tmp/auto-seat-classes
-          python3 - <<'PY'
-          from pathlib import Path
-          assert Path('/tmp/auto-seat-classes.dex').read_bytes()[:8] == b'dex\n035\x00'
-          PY
-# Compilation checks produce no signed replacement. The next job packages
-# the immutable owner-tested APK without access to signing keys.
-
-  signed-package-candidate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
-      - name: Install signature verifier only
+          for script in package/scripts/*.sh package/svc/*.sh usb/*.sh; do sh -n "$script"; done
+          bash -n tools/make_package.sh tools/build_apk.sh
+          python3 tests/check_clean_install.py
+          python3 tests/check_commands.py
+          python3 tests/check_startup_priority.py
+      - name: Install original APK signature verifier
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install 'build-tools;30.0.3'
-      - name: Package original signed APK (no rebuild or signing)
+      - name: Reproduce public release from immutable app and tested runtime
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          python3 tools/package_release.py
+          python3 tools/package_release.py --verify-signature
           python3 tests/check_package.py
-          python3 - <<'PY'
-          import hashlib, zipfile
-          from pathlib import Path
-          release=Path('downloads/Ioniq5-auto-seat-2.0.zip')
-          with zipfile.ZipFile(release) as z:
-              originals=[z.read(n) for n in z.namelist() if n.endswith('.apk')]
-          assert len(originals)==1
-          candidate=Path('dist/Ioniq5-auto-seat-2.0-MIGRATION-UNTESTED.zip')
-          with zipfile.ZipFile(candidate) as z:
-              assert z.read('app/auto-seat.apk')==originals[0]
-              assert b'id=auto-seat' in z.read('NEMESIS.data')
-          print('APK byte identity verified:',hashlib.sha256(originals[0]).hexdigest())
-          PY
-      - name: Prepare single-extraction read-only USB download
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import zipfile, subprocess, tempfile
-          kit=Path('usb-preflight')
-          kit.mkdir()
-          with zipfile.ZipFile('dist/Ioniq5-auto-seat-2.0-PREFLIGHT-USB.zip') as z:
-              for name in z.namelist():
-                  if name in ('migrate.sh','original.zip','candidate.zip') or name.startswith('original/'):
-                      assert not name.startswith('/') and '..' not in name.split('/')
-                      target=kit/name
-                      target.parent.mkdir(parents=True,exist_ok=True)
-                      target.write_bytes(z.read(name))
-          (kit/'NEMESIS.data').write_text('[nemesis]\nversion=1.0\ntype=execute\npath=NEMESIS.sh\n')
-          wrapper='''#!/system/bin/sh
-          # Read-only preflight. Save stdout and errors directly to this USB.
-          /system/bin/sh ./migrate.sh check > ./Auto-Seat-Preflight.log 2>&1
-          result=$?
-          echo "Auto Seat preflight finished (exit $result). See Auto-Seat-Preflight.log on USB."
-          exit "$result"
-          '''
-          (kit/'NEMESIS.sh').write_text(wrapper)
-          subprocess.run(['sh','-n',str(kit/'NEMESIS.sh')],check=True)
-          # Verify that the wrapper preserves the result and saves error output.
-          for result in (0,7):
-              with tempfile.TemporaryDirectory() as folder:
-                  base=Path(folder)
-                  (base/'migrate.sh').write_text('echo "preflight $1"\necho "diagnostic" >&2\nexit '+str(result)+'\n')
-                  checked=subprocess.run(['sh','-c',wrapper.replace('/system/bin/sh','/bin/sh')],cwd=base,capture_output=True,text=True)
-                  assert checked.returncode==result
-                  assert (base/'Auto-Seat-Preflight.log').read_text()=='preflight check\ndiagnostic\n'
-          (kit/'READ-ME.txt').write_text(
-              'AUTO SEAT READ-ONLY PREFLIGHT\n\n'
-              'Extract ALL contents of this download directly onto an empty USB drive.\n'
-              'NEMESIS.data and NEMESIS.sh must be at the top level.\n'
-              'While parked, with Android fully started, insert USB and confirm Execute.\n'
-              'Bring back Auto-Seat-Preflight.log from this USB.\n'
-              'This runs checks only; it does not install, uninstall or change Auto Seat.\n')
-          assert not (kit/'actions').exists()
-          assert (kit/'migrate.sh').read_bytes()==Path('migration/migrate.sh').read_bytes()
-          print('PASS standalone USB root, read-only action, log capture and error exit status')
-          PY
+          (cd dist && sha256sum -c SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: Auto-Seat-Preflight-USB
-          path: usb-preflight/
+          name: autoseat.heat-2.0-verified-release
+          path: dist/
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@v4
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
         with:
-          name: auto-seat-2.0-MIGRATION-UNTESTED
-          path: dist/
-          retention-days: 90
-# Candidate is NOT approved for vehicle installation or store submission.
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: autoseat.heat-2.0-verified-release
+          path: dist
+      - name: Publish the owner-authorized GitHub release after checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG=$(python3 -c 'import json; print(json.load(open("release.json"))["tag"])')
+          TITLE=$(python3 -c 'import json; print(json.load(open("release.json"))["title"])')
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Existing release preserved. Use a new release tag for future updates."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            dist/Auto-Seat-2.0-autoseat.heat-USB.zip \
+            dist/autoseat.heat-2.0.zip \
+            dist/Auto-Seat-2.0-autoseat.heat-source.zip \
+            dist/SHA256SUMS.txt dist/build-validation.json \
+            --target "$GITHUB_SHA" --title "$TITLE" --notes-file RELEASE-NOTES.md --latest

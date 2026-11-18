@@ -14,10 +14,6 @@ fail() { echo "ERR $*"; diag "ERROR $*"; exit 1; }
 level() { case "$1" in 0|1|2|3) ;; *) fail 'invalid seat level';; esac; }
 flag() { case "$1" in 0|1) ;; *) fail 'invalid flag';; esac; }
 number() { case "$1" in ''|*[!0-9]*) fail 'invalid numeric setting';; esac; }
-if [ -e /data/nemesis/backup/auto-seat-migration-v1/HOLD ] && [ "$1" != read ]; then
-    echo "ERR migration hold; finish verification before changing settings or controls"
-    exit 1
-fi
 mode=$1
 shift
 case "$mode" in

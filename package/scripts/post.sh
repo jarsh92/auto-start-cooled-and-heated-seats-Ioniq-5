@@ -2,8 +2,6 @@
 export PATH=/data/nemesis/bin:/sbin:/vendor/bin:/system/sbin:/system/bin:/system/xbin
 STATE=/data/nemesis/state/coldstart.heat
 mkdir -p "$STATE" 2>/dev/null
-# During migration, preserve even absent setting files byte-for-byte.
-if [ ! -e /data/nemesis/backup/auto-seat-migration-v1/HOLD ]; then
 # seed defaults only if not already set
 [ -r "$STATE/enabled" ]     || echo 1  > "$STATE/enabled"
 [ -r "$STATE/threshold_f" ] || echo 50 > "$STATE/threshold_f"
@@ -14,8 +12,7 @@ if [ ! -e /data/nemesis/backup/auto-seat-migration-v1/HOLD ]; then
 [ -r "$STATE/cool_above_f" ] || echo 75 > "$STATE/cool_above_f"
 [ -r "$STATE/vent_drv" ] || echo 0 > "$STATE/vent_drv"
 [ -r "$STATE/vent_pass" ] || echo 0 > "$STATE/vent_pass"
-fi
-. /data/nemesis/apps/auto-seat/scripts/bridge.sh
+. /data/nemesis/apps/autoseat.heat/scripts/bridge.sh
 bridge_install || { echo "Cannot create legacy APK helper bridge"; exit 1; }
-echo "auto-seat installed (threshold_f=$(cat "$STATE/threshold_f" 2>/dev/null))"
+echo "autoseat.heat installed (threshold_f=$(cat "$STATE/threshold_f" 2>/dev/null))"
 exit 0
