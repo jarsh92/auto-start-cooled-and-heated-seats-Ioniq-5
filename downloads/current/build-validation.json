@@ -1,0 +1,10 @@
+{
+  "package_id": "autoseat.heat",
+  "version": "2.0",
+  "original_apk_sha256": "97a181a2289ac31285d8347964dfeba7e6982da7447968886dc53d5302b7ad3b",
+  "apk_signature_check": "not rerun (immutable original APK byte identity checked)",
+  "vehicle_tested_runtime_files_match": true,
+  "on_vehicle_evidence": "clean install verified and owner reports working operation on one US 2023 IONIQ 5 Limited Gen5W; other vehicles unverified",
+  "human_code_review": false,
+  "build_commit": "local build"
+}

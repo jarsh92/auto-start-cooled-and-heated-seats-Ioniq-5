@@ -1,0 +1,19 @@
+AUTO SEAT 2.0 - AI-WRITTEN ENHANCEMENTS - NO INDEPENDENT HUMAN CODE REVIEW
+
+Current NEMESIS ID: autoseat.heat. Visible name: Auto Seat.
+Owner-tested vehicle: US 2023 IONIQ 5 Limited, Gen5W.
+Required internal build: eng.vmadmin.20260903.161833.
+Owner-tested NEMESIS: 1.16.7; NEMESIS must already be working.
+Clean install verified November 17, 2026; owner subsequently reports working operation.
+
+Another IONIQ 5 is unverified even if this build matches. Guard checks do not
+identify region, trim or installed hardware. IONIQ 6, other models, non-US markets,
+other firmware and ccNC are not validated/supported by this package.
+Do not bypass the firmware guard. Required seat/wheel equipment must be present.
+Automatic equipment detection and trim enable/disable controls are planned, not included.
+
+AI inspection/adaptation and contributions are welcome under the MIT license.
+Help from this project is generated with ChatGPT/Codex, not independent human review.
+Retain Gregory Taylor's original upstream credit and license.
+
+This post was prepared and posted with ChatGPT.

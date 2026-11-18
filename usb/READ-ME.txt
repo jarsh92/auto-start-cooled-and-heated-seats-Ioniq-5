@@ -1,0 +1,25 @@
+AUTO SEAT 2.0 - autoseat.heat - AI-WRITTEN ENHANCEMENTS
+No independent human code review. Josh Waldmire directed the AI work and tested his car.
+Original HKMC Cold-start Heat credit: Gregory Taylor (eclipseempire).
+
+1. If an older Auto Seat is installed, uninstall it through NEMESIS My Packages.
+   Do not just uninstall its Android icon. The installer never uninstalls automatically.
+2. Extract ALL CONTENTS of the USB ZIP directly to an otherwise empty USB.
+   NEMESIS.data and NEMESIS.sh must be at root. Leave the inner ZIP compressed.
+3. Park, let Android fully start, insert USB and approve Execute. Do not interrupt power/USB.
+4. Return Auto-Seat-Clean-Install.log if it stops; keep all files unchanged before review.
+   Additional Android error details are saved automatically on installation failure.
+
+The visible name is Auto Seat. The current NEMESIS ID/service is autoseat.heat / autoseat.heat/apply.
+The original signed app/Android ID stays unchanged. A coldstart.heat helper directory is required
+by its fixed path; that helper is not a second registered package or service.
+Settings may remain; missing values get defaults. Reset them in the app if desired.
+No settings migration/restore or old HOLD workflow is used. Old backups are not deleted.
+
+Owner-tested: US 2023 IONIQ 5 Limited Gen5W, eng.vmadmin.20260903.161833, NEMESIS 1.16.7.
+Other cars, trims, firmware and IONIQ 6 are unverified/not supported by this release.
+Do not bypass the build guard. Hardware detection/trim toggles are planned, not included.
+AI inspection, criticism and adaptation are welcome under the MIT license with attribution.
+Any help from this project uses ChatGPT/Codex, not independent human engineering review.
+
+This post was prepared and posted with ChatGPT.

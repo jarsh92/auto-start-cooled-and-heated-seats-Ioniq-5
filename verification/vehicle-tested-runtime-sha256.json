@@ -1,0 +1,13 @@
+{
+  "package/NEMESIS.data": "39db7b54e589a85b1520d18a25604ca62b8730b8cf544d1d806cacef63fd612e",
+  "package/app/auto-seat.apk": "97a181a2289ac31285d8347964dfeba7e6982da7447968886dc53d5302b7ad3b",
+  "package/scripts/bridge.sh": "5be6a8f06311200d74579b1d559031e1e805fa8ea8f965e06aec01637c8d0e5b",
+  "package/scripts/check-build.sh": "94e16e25d5364e7d933a8ea2d9a5c62bf7552ff99f1e147bbffd272f638e06be",
+  "package/scripts/post.sh": "311ade9aad98cb5669f99f18c4af4b496d9bfaae50384dbae5b38c2f35a5eed6",
+  "package/scripts/preun.sh": "5aa68b366e544bbe6873165d36e1770e8f45d9aa8e87c6518d8f9fec30c37d45",
+  "package/scripts/seat-action.sh": "621bdbdfe2439c2f139afbf572f40733d4bad23a4ba83d25501aafaa910a2d2e",
+  "package/svc/auto-seat.sh": "eb3f67df5c031f45be9610d5f95405e8bb32aff9dc5914f09dc9a7a7c8c433a3",
+  "usb/NEMESIS.data": "6fe2b93f60ba3957660fcc4502ab89c0974038dcbd125f1b0791a253555d08ca",
+  "usb/NEMESIS.sh": "ffb255957d78a98312f97576c8c6d9accc678b7e8582c8091a4293bc4329c47a",
+  "usb/clean-install.sh": "f09d319ede40ae9bd7a2bb5df517f3148ae35be5a014b0b023a5d3b6e265ff6a"
+}

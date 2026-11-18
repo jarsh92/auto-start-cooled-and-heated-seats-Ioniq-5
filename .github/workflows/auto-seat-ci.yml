@@ -1,0 +1,82 @@
+name: Auto Seat clean release validation
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Shell syntax and clean package regression
+        run: |
+          for script in package/scripts/*.sh package/svc/*.sh usb/*.sh; do sh -n "$script"; done
+          bash -n tools/make_package.sh tools/build_apk.sh
+          python3 tests/check_clean_install.py
+          python3 tests/check_commands.py
+          python3 tests/check_startup_priority.py
+      - name: Install original APK signature verifier
+        run: |
+          export ANDROID_HOME=/usr/local/lib/android/sdk
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -path '*/bin/sdkmanager' -type f | sort -V | tail -1)
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install 'build-tools;30.0.3'
+      - name: Reproduce public release from immutable app and tested runtime
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+        run: |
+          python3 tools/package_release.py --verify-signature
+          python3 tests/check_package.py
+          (cd dist && sha256sum -c SHA256SUMS.txt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: autoseat.heat-2.0-verified-release
+          path: dist/
+          if-no-files-found: error
+          retention-days: 90
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: autoseat.heat-2.0-verified-release
+          path: dist
+      - name: Publish the owner-authorized GitHub release after checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          TAG=$(python3 -c 'import json; print(json.load(open("release.json"))["tag"])')
+          TITLE=$(python3 -c 'import json; print(json.load(open("release.json"))["title"])')
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Existing release preserved. Use a new release tag for future updates."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            dist/Auto-Seat-2.0-autoseat.heat-USB.zip \
+            dist/autoseat.heat-2.0.zip \
+            dist/Auto-Seat-2.0-autoseat.heat-source.zip \
+            dist/SHA256SUMS.txt dist/build-validation.json \
+            --target "$GITHUB_SHA" --title "$TITLE" --notes-file RELEASE-NOTES.md --latest
