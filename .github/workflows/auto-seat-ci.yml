@@ -1,4 +1,4 @@
-name: Auto Seat clean release validation
+name: Auto Seat startup fix candidate validation
 
 on:
   pull_request:
@@ -28,6 +28,7 @@ jobs:
           python3 tests/check_clean_install.py
           python3 tests/check_commands.py
           python3 tests/check_startup_priority.py
+          python3 tests/check_startup_temperature.py
       - name: Install original APK signature verifier
         run: |
           export ANDROID_HOME=/usr/local/lib/android/sdk
@@ -35,22 +36,24 @@ jobs:
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install 'build-tools;30.0.3'
-      - name: Reproduce public release from immutable app and tested runtime
+      - name: Build candidate from immutable APK and service-only change
         env:
           ANDROID_HOME: /usr/local/lib/android/sdk
         run: |
-          python3 tools/package_release.py --verify-signature
-          python3 tests/check_package.py
-          (cd dist && sha256sum -c SHA256SUMS.txt)
+          python3 tools/package_release.py --verify-signature --startup-candidate
+          python3 tests/check_package.py --startup-candidate
+          (cd dist/startup-candidate && sha256sum -c SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: autoseat.heat-2.0-verified-release
-          path: dist/
+          name: autoseat.heat-2.0-startup-fix-CANDIDATE
+          path: dist/startup-candidate/
           if-no-files-found: error
           retention-days: 90
 
   publish:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Explicitly disabled: candidate has no vehicle validation. A future
+    # reviewed release change must restore the stable build/publish workflow.
+    if: ${{ false }}
     needs: verify
     runs-on: ubuntu-latest
     permissions:

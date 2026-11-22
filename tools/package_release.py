@@ -18,7 +18,7 @@ def pack(files,out):
             z.writestr(info,data)
     with zipfile.ZipFile(out) as z:assert z.testzip() is None
 
-def build(verify_signature=False):
+def build(verify_signature=False, startup_candidate=False):
     original=ROOT/'downloads/Ioniq5-auto-seat-2.0.zip'
     assert sha(original.read_bytes())==RELEASE_SHA,'Original immutable release changed'
     with zipfile.ZipFile(original) as z:apk=z.read('app/auto-seat.apk')
@@ -49,15 +49,24 @@ def build(verify_signature=False):
     for section in ['app.0','service.0']:assert metadata[section]['path'] in package
     usb={p.relative_to(ROOT/'usb').as_posix():p.read_bytes() for p in (ROOT/'usb').rglob('*') if p.is_file()}
     inventory=json.loads((ROOT/'verification/vehicle-tested-runtime-sha256.json').read_text())
+    changed_runtime=[]
     for path,want in inventory.items():
         folder,name=path.split('/',1)
-        assert sha((package if folder=='package' else usb)[name])==want,'Vehicle-tested runtime drift: '+path
+        if sha((package if folder=='package' else usb)[name])!=want:
+            changed_runtime.append(path)
+    if startup_candidate:
+        assert changed_runtime==['package/svc/auto-seat.sh'],('Unexpected candidate runtime changes',changed_runtime)
+    else:
+        assert not changed_runtime,'Vehicle-tested runtime drift: '+','.join(changed_runtime)
     assert all(b'auto-seat-migration-v1/HOLD' not in data for name,data in package.items() if name.endswith('.sh'))
-    out=ROOT/'dist';out.mkdir(exist_ok=True)
+    out=ROOT/('dist/startup-candidate' if startup_candidate else 'dist');out.mkdir(parents=True,exist_ok=True)
     inner=out/'autoseat.heat-2.0.zip';pack(package,inner)
     usb['autoseat.heat-2.0.zip']=inner.read_bytes()
     usb['LICENSE']=(ROOT/'LICENSE').read_bytes();usb['CREDITS.md']=(ROOT/'CREDITS.md').read_bytes()
-    outer=out/'Auto-Seat-2.0-autoseat.heat-USB.zip';pack(usb,outer)
+    suffix='-startup-fix-CANDIDATE' if startup_candidate else ''
+    if startup_candidate:
+        usb['READ-ME.txt']=(ROOT/'docs/STARTUP-TEMPERATURE-CANDIDATE.md').read_bytes()
+    outer=out/('Auto-Seat-2.0-autoseat.heat'+suffix+'-USB.zip');pack(usb,outer)
     source={}
     for directory in ['app/src','app/res','package/scripts','package/svc','tests','tools','artwork','docs','usb','verification','.github']:
         for p in (ROOT/directory).rglob('*'):
@@ -67,12 +76,18 @@ def build(verify_signature=False):
         if p.is_file() and (p.suffix in ['.md','.txt'] or p.name in ['LICENSE','.gitignore','release.json']):source['auto-seat/'+p.name]=p.read_bytes()
     for name in ['app/AndroidManifest.xml','package/NEMESIS.data','downloads/Ioniq5-auto-seat-2.0.zip']:
         source['auto-seat/'+name]=(ROOT/name).read_bytes()
-    src=out/'Auto-Seat-2.0-autoseat.heat-source.zip';pack(source,src)
+    src=out/('Auto-Seat-2.0-autoseat.heat'+suffix+'-source.zip');pack(source,src)
     report={'package_id':CONFIG['package_id'],'version':CONFIG['version'],'original_apk_sha256':APK_SHA,'apk_signature_check':signature,'vehicle_tested_runtime_files_match':True,'on_vehicle_evidence':'clean install verified and owner reports working operation on one US 2023 IONIQ 5 Limited Gen5W; other vehicles unverified','human_code_review':False,'build_commit':os.environ.get('GITHUB_SHA','local build')}
+    if startup_candidate:
+        report.update(candidate=True,vehicle_tested_runtime_files_match=False,
+                      changed_runtime_files=changed_runtime,
+                      on_vehicle_evidence='Startup temperature fix has NOT been tested on a vehicle; host simulations only.',
+                      original_apk_unchanged=True)
     record=out/'build-validation.json';record.write_text(json.dumps(report,indent=2)+'\n')
     checksums=out/'SHA256SUMS.txt';checksums.write_text(''.join(sha(p.read_bytes())+'  '+p.name+'\n' for p in [outer,inner,src,record]),newline='\n')
     print(json.dumps(report,indent=2));return out
 
 if __name__=='__main__':
     parser=argparse.ArgumentParser();parser.add_argument('--verify-signature',action='store_true')
-    build(parser.parse_args().verify_signature)
+    parser.add_argument('--startup-candidate',action='store_true',help='Build only the explicitly unvalidated service-fix candidate')
+    args=parser.parse_args();build(args.verify_signature,args.startup_candidate)

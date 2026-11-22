@@ -71,7 +71,11 @@ service() {
     (state/'enabled').write_text('1\n')
     (f/'locks/manual.override').unlink()
     calls.write_text('')
-    run((pkg/'svc/auto-seat.sh').read_text(),extra="""logcat() { echo '"outTemperature":30,'; }
+    run((pkg/'svc/auto-seat.sh').read_text(),extra="""logcat() {
+    n=0; [ ! -r '"""+str(f/'logcat-count')+"""' ] || read -r n < '"""+str(f/'logcat-count')+"""'
+    n=$((n+1)); echo "$n" > '"""+str(f/'logcat-count')+"""'
+    echo "$n Sim: \\\"outTemperature\\\":30,"
+}
 """)
     assert calls.read_text().splitlines()==['call com.hkmc.micom.usm 213 i32 4','call com.hkmc.micom.usm 214 i32 3']
     rows.append({'test':'warm startup ventilation works with retained old HOLD','passed':True})

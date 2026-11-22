@@ -25,7 +25,9 @@ echo "Result: Parcel(00000000    '....')"
 ''')
     (tools / 'logcat').write_text('''#!/bin/sh
 touch "$LOGCAT_SEEN"
-if [ -f "$TEMP_READY" ]; then echo '"outTemperature":20,'; fi
+n=0; [ ! -r "$LOGCAT_SEEN.count" ] || read -r n < "$LOGCAT_SEEN.count"
+n=$((n+1)); echo "$n" > "$LOGCAT_SEEN.count"
+if [ -f "$TEMP_READY" ]; then echo "$n Sim: \\"outTemperature\\":20,"; fi
 ''')
     # Saving must work even if this utility is unavailable, as on a limited toolbox.
     (tools / 'mv').write_text('#!/bin/sh\necho "mv unavailable" >&2\nexit 127\n')
