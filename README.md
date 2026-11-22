@@ -8,6 +8,17 @@ Automatic startup heating and ventilation, with individual seat controls, for th
 
 Josh's main goal was to add temperature-based seat ventilation for equipped vehicles to the original heating-focused project. ChatGPT/Codex wrote the Auto Seat-specific code, interface changes, package scripts, tests and documentation at his direction. Josh supplied requirements, design choices and hands-on vehicle feedback. Automated tests and owner testing are not independent human code review.
 
+## Known startup bug — public test fix available
+
+The older release can accept an unready **−40°C/−40°F** temperature at startup
+and activate heating incorrectly. A corrected **[public test pre-release](https://github.com/jarsh92/auto-start-cooled-and-heated-seats-Ioniq-5/releases/tag/v2.0-startup-temperature-rc1)** is now available for people who want to try the fix.
+
+The fix passed automated checks and initial owner installation feedback, but
+repeated real-world starts and post-fix log review remain pending. It is labeled
+**Testing — feedback welcome**, not proven stable. App version remains **2.0**.
+Read the pre-release installation instructions; it uses the existing clean installer.
+The earlier stable download below still contains the known startup bug.
+
 ## Download and install
 
 **[Download the current Auto Seat USB installer](https://github.com/jarsh92/auto-start-cooled-and-heated-seats-Ioniq-5/releases/download/v2.0-autoseat.heat-r1/Auto-Seat-2.0-autoseat.heat-USB.zip)**
