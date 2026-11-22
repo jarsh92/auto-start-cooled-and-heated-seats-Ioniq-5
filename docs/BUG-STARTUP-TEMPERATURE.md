@@ -1,7 +1,8 @@
 # Incorrect startup heating from an unready temperature
 
 Status: confirmed in owner logs; proposed service fix and host tests prepared.
-The fix has not passed an on-vehicle test or independent human code review.
+Initial owner feedback after candidate installation is positive. Repeated
+on-vehicle startup validation and independent human code review are pending.
 Auto Seat changes and this document were written with ChatGPT/Codex under
 Josh Waldmire's direction. Original upstream authorship remains credited.
 
@@ -96,6 +97,14 @@ firmware logs temperature only before the baseline and emits no later record.
 That availability tradeoff requires car testing; do not silently restore the
 old stale-value fallback. Vehicle-ready gating and actuation readback remain
 separate future investigations.
+
+## Initial owner feedback — November 22, 2026
+
+After installing the candidate, Josh reported: “seems to have worked for now.
+only time will tell.” This is initial positive owner feedback, not confirmation
+that repeated cold and warm starts or every control path have passed. No new
+post-fix diagnostic logs have been reviewed yet. Keep the fix as a draft test
+candidate pending repeated starts and log review; the stable release is unchanged.
 
 ## Log retention
 
