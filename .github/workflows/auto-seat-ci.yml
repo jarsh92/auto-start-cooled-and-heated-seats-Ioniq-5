@@ -3,7 +3,7 @@ name: Auto Seat startup fix candidate validation
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, fix/startup-temperature-validation]
   workflow_dispatch:
 
 permissions:
@@ -51,9 +51,8 @@ jobs:
           retention-days: 90
 
   publish:
-    # Explicitly disabled: candidate has no vehicle validation. A future
-    # reviewed release change must restore the stable build/publish workflow.
-    if: ${{ false }}
+    # Owner-authorized PUBLIC TEST only. Never replace the stable assets.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/fix/startup-temperature-validation'
     needs: verify
     runs-on: ubuntu-latest
     permissions:
@@ -64,22 +63,41 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
-          name: autoseat.heat-2.0-verified-release
-          path: dist
-      - name: Publish the owner-authorized GitHub release after checks pass
+          name: autoseat.heat-2.0-startup-fix-CANDIDATE
+          path: dist/startup-candidate
+      - name: Publish public test and warn about earlier startup bug
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          TAG=$(python3 -c 'import json; print(json.load(open("release.json"))["tag"])')
-          TITLE=$(python3 -c 'import json; print(json.load(open("release.json"))["title"])')
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            echo "Existing release preserved. Use a new release tag for future updates."
-            exit 0
+          TAG=v2.0-startup-temperature-rc1
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              dist/startup-candidate/Auto-Seat-2.0-autoseat.heat-startup-fix-CANDIDATE-USB.zip \
+              dist/startup-candidate/autoseat.heat-2.0.zip \
+              dist/startup-candidate/Auto-Seat-2.0-autoseat.heat-startup-fix-CANDIDATE-source.zip \
+              dist/startup-candidate/SHA256SUMS.txt \
+              dist/startup-candidate/build-validation.json \
+              --target "$GITHUB_SHA" \
+              --title "Auto Seat 2.0 — Startup Temperature Fix (Public Test)" \
+              --notes-file docs/PUBLIC-TEST-RELEASE.md --prerelease --latest=false
           fi
-          gh release create "$TAG" \
-            dist/Auto-Seat-2.0-autoseat.heat-USB.zip \
-            dist/autoseat.heat-2.0.zip \
-            dist/Auto-Seat-2.0-autoseat.heat-source.zip \
-            dist/SHA256SUMS.txt dist/build-validation.json \
-            --target "$GITHUB_SHA" --title "$TITLE" --notes-file RELEASE-NOTES.md --latest
+          export PUBLIC_TEST_URL="$(gh release view "$TAG" --json url --jq .url)"
+          for old in v2.0-autoseat.heat-r1 v2.0; do
+            gh release view "$old" --json body --jq .body > /tmp/auto-seat-previous-notes.md
+            python3 - <<'PY'
+          import os
+          from pathlib import Path
+          p=Path('/tmp/auto-seat-previous-notes.md')
+          original=p.read_text()
+          marker='Known startup-temperature bug'
+          if marker not in original:
+              warning=('> [!WARNING]\n'
+                       '> **Known startup-temperature bug:** this older build may accept an unready -40-degree reading and activate heating incorrectly.\n'
+                       '> A corrected **public test installer** is available: '+os.environ['PUBLIC_TEST_URL']+'\n'
+                       '> The fix has passed automated checks and initial owner installation feedback; repeated vehicle-start validation is still pending.\n\n')
+              p.write_text(warning+original)
+          PY
+            gh release edit "$old" --notes-file /tmp/auto-seat-previous-notes.md
+          done
+          gh release view "$TAG" --json url,isPrerelease,assets
