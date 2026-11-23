@@ -63,7 +63,7 @@ def build(verify_signature=False, startup_candidate=False):
     inner=out/'autoseat.heat-2.0.zip';pack(package,inner)
     usb['autoseat.heat-2.0.zip']=inner.read_bytes()
     usb['LICENSE']=(ROOT/'LICENSE').read_bytes();usb['CREDITS.md']=(ROOT/'CREDITS.md').read_bytes()
-    suffix='-startup-fix-CANDIDATE' if startup_candidate else ''
+    suffix='-startup-fix-RC2' if startup_candidate else ''
     if startup_candidate:
         usb['READ-ME.txt']=(ROOT/'docs/STARTUP-TEMPERATURE-CANDIDATE.md').read_bytes()
     outer=out/('Auto-Seat-2.0-autoseat.heat'+suffix+'-USB.zip');pack(usb,outer)
@@ -79,9 +79,9 @@ def build(verify_signature=False, startup_candidate=False):
     src=out/('Auto-Seat-2.0-autoseat.heat'+suffix+'-source.zip');pack(source,src)
     report={'package_id':CONFIG['package_id'],'version':CONFIG['version'],'original_apk_sha256':APK_SHA,'apk_signature_check':signature,'vehicle_tested_runtime_files_match':True,'on_vehicle_evidence':'clean install verified and owner reports working operation on one US 2023 IONIQ 5 Limited Gen5W; other vehicles unverified','human_code_review':False,'build_commit':os.environ.get('GITHUB_SHA','local build')}
     if startup_candidate:
-        report.update(candidate=True,vehicle_tested_runtime_files_match=False,
+        report.update(candidate=True,candidate_revision=2,vehicle_tested_runtime_files_match=False,
                       changed_runtime_files=changed_runtime,
-                      on_vehicle_evidence='Startup temperature fix has NOT been tested on a vehicle; host simulations only.',
+                      on_vehicle_evidence='RC2 action confirmation/live capture/delayed retry have NOT been tested on a vehicle; host simulations only.',
                       original_apk_unchanged=True)
     record=out/'build-validation.json';record.write_text(json.dumps(report,indent=2)+'\n')
     checksums=out/'SHA256SUMS.txt';checksums.write_text(''.join(sha(p.read_bytes())+'  '+p.name+'\n' for p in [outer,inner,src,record]),newline='\n')

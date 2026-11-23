@@ -13,20 +13,41 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = (ROOT / 'package/svc/auto-seat.sh').read_text()
 MOCK = '''#!/usr/bin/env python3
-import json, os, sys
+import json, os, sys, time, signal
 from pathlib import Path
 b = Path(os.environ['SIM']); cfg = json.loads((b/'scenario').read_text())
 clock = b/'uptime'; now = int(clock.read_text().split('.')[0]); cmd = Path(sys.argv[0]).name
+def output(frame):
+    for key, prefix in [('eco', ''), ('ui', 'setOutsideTempUIAdvanced::temp = ')]:
+        if key in frame: print('11-22 12:00:%02d.000 100 200 I Sim: '%frame['at'] + prefix + frame[key], flush=True)
 if cmd == 'sleep':
     now += int(sys.argv[1]); clock.write_text(str(now)+'.00 0.00\\n')
     if now >= cfg.get('manual_at', 10000):
         (b/'locks').mkdir(exist_ok=True); (b/'locks/manual.override').touch()
+    if now >= cfg.get('terminate_at', 10000): os.kill(os.getppid(),signal.SIGTERM)
+    # Give the independent simulated live listener its next clock tick.
+    if not cfg.get('listener_exit', False):
+        deadline=time.monotonic()+1
+        while time.monotonic()<deadline:
+            if (b/'listener-seen').exists() and (b/'listener-seen').read_text().strip()==str(now): break
+            time.sleep(0.002)
 elif cmd == 'logcat':
+    if '-d' not in sys.argv:
+        (b/'listener-pid').write_text(str(os.getpid()))
+        if cfg.get('listener_exit', False): sys.exit(1)
+        written=set()
+        while True:
+            try: now=int(clock.read_text().split('.')[0])
+            except ValueError: time.sleep(0.001); continue
+            for i, frame in enumerate(cfg['frames']):
+                if frame['at']<=now and i not in written:
+                    output(frame); written.add(i)
+            (b/'listener-seen').write_text(str(now))
+            time.sleep(0.002)
     frame = {'at': 0}
     for candidate in cfg['frames']:
         if candidate['at'] <= now: frame = candidate
-    for key, prefix in [('eco', ''), ('ui', 'setOutsideTempUIAdvanced::temp = ')]:
-        if key in frame: print('11-22 12:00:%02d.000 100 200 I Sim: '%frame['at'] + prefix + frame[key])
+    output(frame)
     clock.write_text(str(now+cfg.get('scan_seconds', 0))+'.00 0.00\\n')
 elif cmd == 'service':
     if sys.argv[1] == 'check':
@@ -59,10 +80,15 @@ def replay(frames, settings=None, **options):
         (b/'startup.sh').write_text(script)
         result = subprocess.run(['sh',str(b/'startup.sh')],env=dict(os.environ,SIM=str(b)),
                                 capture_output=True,text=True,timeout=15)
-        assert result.returncode == 0, (result.stdout, result.stderr)
+        assert result.returncode == options.get('expected_exit',0), (result.stdout, result.stderr)
         assert not result.stderr, result.stderr
         calls=(b/'calls').read_text().splitlines()
         assert not (b/'locks/actuation.lock').exists(), 'Leaked actuation lock'
+        assert not list((b/'locks').glob('temperature.*')), 'Leaked capture files'
+        if (b/'listener-pid').exists():
+            try: os.kill(int((b/'listener-pid').read_text()),0)
+            except ProcessLookupError: pass
+            else: raise AssertionError('Leaked background logcat listener')
         return calls, result.stdout, int((b/'uptime').read_text().split('.')[0])
 
 
@@ -74,11 +100,11 @@ class StartupTemperature(unittest.TestCase):
         calls, log, _ = replay([{'at':0},{'at':3,'eco':'"outTemperature":-40,','ui':'-1.0 / tempunit = -1'},
                                {'at':6,'eco':'"outTemperature":-40,','ui':'73.0 / tempunit = 2'}])
         self.assertEqual(calls,self.VENT); self.assertIn('reject ECO -40C',log)
-        self.assertIn('confirmed outside=73F source=dashboard-unit-2',log)
+        self.assertIn('confirmed outside=73F action=vent source=dashboard-unit-2',log)
 
     def test_minus40_alone_never_heats(self):
         calls, log, elapsed = replay([{'at':0},{'at':3,'eco':'"outTemperature":-40,'}])
-        self.assertEqual(calls,[]); self.assertIn('no fresh stable',log); self.assertEqual(elapsed,24)
+        self.assertEqual(calls,[]); self.assertIn('attempts exhausted',log); self.assertEqual(elapsed,240)
 
     def test_dashboard_wins_over_conflicting_eco(self):
         calls,_,_=replay([{'at':0},{'at':3,'eco':'"outTemperature":0,','ui':'73 / tempunit = 2'}])
@@ -101,7 +127,7 @@ class StartupTemperature(unittest.TestCase):
 
     def test_stale_records_do_not_trigger(self):
         calls,log,_=replay([{'at':0,'ui':'73 / tempunit = 2','eco':'"outTemperature":23,'}])
-        self.assertEqual(calls,[]); self.assertIn('no fresh stable',log)
+        self.assertEqual(calls,[]); self.assertIn('attempts exhausted',log)
 
     def test_transient_cold_changes_before_confirmation(self):
         calls,log,_=replay([{'at':0},{'at':3,'ui':'58 / tempunit = 2'},
@@ -143,20 +169,81 @@ class StartupTemperature(unittest.TestCase):
 
     def test_services_timeout_and_late_ready(self):
         calls,log,elapsed=replay([{'at':0},{'at':3,'ui':'73 / tempunit = 2'}],service_ready_at=100)
-        self.assertEqual(calls,[]); self.assertEqual(elapsed,24); self.assertIn('services not ready',log)
+        self.assertEqual(calls,[]); self.assertEqual(elapsed,240); self.assertIn('services not ready',log)
         calls,_,_=replay([{'at':0},{'at':3,'ui':'73 / tempunit = 2'}],service_ready_at=10)
         self.assertEqual(calls,self.VENT)
 
     def test_expensive_logcat_counts_toward_deadline(self):
-        calls,log,elapsed=replay([{'at':0},{'at':1,'ui':'73 / tempunit = 2'}],scan_seconds=12)
-        self.assertEqual(calls,[]); self.assertIn('no fresh stable',log)
-        self.assertLessEqual(elapsed,48)  # baseline + deadline + one in-flight scan
+        calls,log,elapsed=replay([{'at':0},{'at':1,'ui':'73 / tempunit = 2'}],scan_seconds=12,listener_exit=True)
+        self.assertEqual(calls,[]); self.assertIn('attempts exhausted',log)
+        self.assertLessEqual(elapsed,252)  # overall deadline + one in-flight scan
 
     def test_diagnostics_off_disabled_and_cooling_off(self):
         frames=[{'at':0},{'at':3,'ui':'73 / tempunit = 2'}]
         calls,_,_=replay(frames,dict(diag=0)); self.assertEqual(calls,self.VENT)
         calls,_,_=replay(frames,dict(enabled=0)); self.assertEqual(calls,[])
         calls,_,_=replay(frames,dict(cool_enabled=0)); self.assertEqual(calls,[])
+
+    def test_large_temperature_change_same_heat_action(self):
+        calls,log,elapsed=replay([{'at':0},{'at':3,'ui':'47 / tempunit = 2'},
+                                  {'at':6,'ui':'55 / tempunit = 2'}])
+        self.assertEqual(calls,self.HEAT); self.assertLess(elapsed,180)
+        self.assertIn('confirmed outside=55F action=heat',log)
+
+    def test_large_temperature_change_same_vent_action(self):
+        calls,log,_=replay([{'at':0},{'at':3,'ui':'73 / tempunit = 2'},
+                            {'at':6,'ui':'81 / tempunit = 2'}])
+        self.assertEqual(calls,self.VENT); self.assertIn('confirmed outside=81F action=vent',log)
+
+    def test_source_change_same_action_does_not_restart_confirmation(self):
+        calls,log,_=replay([{'at':0},{'at':3,'eco':'"outTemperature":8,'},
+                            {'at':6,'ui':'50 / tempunit = 2'}])
+        self.assertEqual(calls,self.HEAT); self.assertIn('confirmed outside=50F action=heat',log)
+
+    def test_logcat_record_disappears_from_snapshot(self):
+        calls,log,_=replay([{'at':0},{'at':3,'ui':'44 / tempunit = 2'},{'at':6}])
+        self.assertEqual(calls,self.HEAT); self.assertIn('reader=live-capture',log)
+
+    def test_delayed_retry_obtains_new_temperature(self):
+        calls,log,elapsed=replay([{'at':0},{'at':183,'ui':'44 / tempunit = 2'}])
+        self.assertEqual(calls,self.HEAT)
+        self.assertGreaterEqual(elapsed,186); self.assertLess(elapsed,240)
+        self.assertIn('delayed startup retry began',log); self.assertIn('attempt=2',log)
+
+    def test_retry_cannot_reuse_an_old_record(self):
+        calls,log,elapsed=replay([{'at':0,'ui':'44 / tempunit = 2'}])
+        self.assertEqual(calls,[]); self.assertEqual(elapsed,240)
+        self.assertIn('fresh records required',log)
+
+    def test_manual_request_cancels_delayed_retry(self):
+        calls,log,elapsed=replay([{'at':0},{'at':183,'ui':'44 / tempunit = 2'}],manual_at=90)
+        self.assertEqual(calls,[]); self.assertLess(elapsed,180)
+        self.assertIn('manual command already requested',log)
+
+    def test_successful_or_neutral_decision_has_no_second_attempt(self):
+        for value in [44,65,73]:
+            with self.subTest(value=value):
+                calls,log,elapsed=replay([{'at':0},{'at':3,'ui':str(value)+' / tempunit = 2'}])
+                self.assertLess(elapsed,180); self.assertNotIn('delayed startup retry began',log)
+                self.assertEqual(calls,self.HEAT if value==44 else self.VENT if value==73 else [])
+
+    def test_delayed_services_can_recover_in_retry_window(self):
+        calls,log,elapsed=replay([{'at':0},{'at':213,'ui':'44 / tempunit = 2'}],service_ready_at=210)
+        self.assertEqual(calls,self.HEAT); self.assertGreaterEqual(elapsed,216)
+        self.assertIn('attempt=2',log)
+
+    def test_live_capture_catches_a_brief_record_between_snapshot_polls(self):
+        # Model a valid event which leaves the ring buffer before the next
+        # 3-second snapshot. The live reader retains it without stale replay.
+        frames=[{'at':0},{'at':23,'ui':'47 / tempunit = 2'},
+                {'at':24},{'at':44,'ui':'46 / tempunit = 2'},{'at':45}]
+        calls,log,elapsed=replay(frames,dict(max_wait=120))
+        self.assertEqual(calls,self.HEAT); self.assertLess(elapsed,60)
+        self.assertIn('action=heat',log)
+
+    def test_service_termination_cleans_up_listener(self):
+        calls,_,_=replay([{'at':0}],terminate_at=6,expected_exit=1)
+        self.assertEqual(calls,[])
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

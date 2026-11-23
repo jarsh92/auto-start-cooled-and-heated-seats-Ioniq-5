@@ -1,4 +1,4 @@
-name: Auto Seat startup fix candidate validation
+name: Auto Seat RC2 startup confirmation and retry validation
 
 on:
   pull_request:
@@ -45,7 +45,7 @@ jobs:
           (cd dist/startup-candidate && sha256sum -c SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
-          name: autoseat.heat-2.0-startup-fix-CANDIDATE
+          name: autoseat.heat-2.0-startup-fix-RC2
           path: dist/startup-candidate/
           if-no-files-found: error
           retention-days: 90
@@ -63,40 +63,45 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
-          name: autoseat.heat-2.0-startup-fix-CANDIDATE
+          name: autoseat.heat-2.0-startup-fix-RC2
           path: dist/startup-candidate
       - name: Publish public test and warn about earlier startup bug
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          TAG=v2.0-startup-temperature-rc1
+          TAG=v2.0-startup-temperature-rc2
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" \
-              dist/startup-candidate/Auto-Seat-2.0-autoseat.heat-startup-fix-CANDIDATE-USB.zip \
+              dist/startup-candidate/Auto-Seat-2.0-autoseat.heat-startup-fix-RC2-USB.zip \
               dist/startup-candidate/autoseat.heat-2.0.zip \
-              dist/startup-candidate/Auto-Seat-2.0-autoseat.heat-startup-fix-CANDIDATE-source.zip \
+              dist/startup-candidate/Auto-Seat-2.0-autoseat.heat-startup-fix-RC2-source.zip \
               dist/startup-candidate/SHA256SUMS.txt \
               dist/startup-candidate/build-validation.json \
               --target "$GITHUB_SHA" \
-              --title "Auto Seat 2.0 — Startup Temperature Fix (Public Test)" \
+              --title "Auto Seat 2.0 — Startup Confirmation and Retry RC2 (Public Test)" \
               --notes-file docs/PUBLIC-TEST-RELEASE.md --prerelease --latest=false
           fi
           export PUBLIC_TEST_URL="$(gh release view "$TAG" --json url --jq .url)"
-          for old in v2.0-autoseat.heat-r1 v2.0; do
+          for old in v2.0-startup-temperature-rc1 v2.0-autoseat.heat-r1 v2.0; do
+            export PREVIOUS_TAG="$old"
             gh release view "$old" --json body --jq .body > /tmp/auto-seat-previous-notes.md
             python3 - <<'PY'
           import os
           from pathlib import Path
           p=Path('/tmp/auto-seat-previous-notes.md')
           original=p.read_text()
-          marker='Known startup-temperature bug'
-          if marker not in original:
-              warning=('> [!WARNING]\n'
-                       '> **Known startup-temperature bug:** this older build may accept an unready -40-degree reading and activate heating incorrectly.\n'
-                       '> A corrected **public test installer** is available: '+os.environ['PUBLIC_TEST_URL']+'\n'
-                       '> The fix has passed automated checks and initial owner installation feedback; repeated vehicle-start validation is still pending.\n\n')
-              p.write_text(warning+original)
+          # Replace our previous leading warning, preserving all release notes.
+          if original.startswith('> [!WARNING]') and ('Known startup-temperature bug' in original.split('\n\n',1)[0] or 'Known startup issue' in original.split('\n\n',1)[0]):
+              original=original.split('\n\n',1)[1]
+          reason=('RC1 can time out without activating seats despite valid temperatures.'
+                  if os.environ['PREVIOUS_TAG']=='v2.0-startup-temperature-rc1'
+                  else 'This older build can treat an unready -40-degree value as real and activate heating incorrectly.')
+          warning=('> [!WARNING]\n'
+                   '> **Known startup issue:** '+reason+'\n'
+                   '> The latest **RC2 public test installer** is available: '+os.environ['PUBLIC_TEST_URL']+'\n'
+                   '> RC2 adds action-based tolerance, live temperature capture and a bounded delayed retry. It has passed automated checks but has not yet been vehicle-tested.\n\n')
+          p.write_text(warning+original)
           PY
             gh release edit "$old" --notes-file /tmp/auto-seat-previous-notes.md
           done

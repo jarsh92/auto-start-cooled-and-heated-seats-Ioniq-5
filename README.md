@@ -9,6 +9,10 @@ unready ECO temperature of -40°C and choose heating incorrectly. A startup
 temperature fix is being prepared and host-tested; it is **not yet vehicle-tested**.
 See [bug evidence and fix design](docs/BUG-STARTUP-TEMPERATURE.md) and
 [candidate testing instructions](docs/STARTUP-TEMPERATURE-CANDIDATE.md).
+RC1's exact-temperature confirmation also proved unreliable in owner logs.
+RC2 now confirms the requested action, retains brief temperature messages and
+allows one delayed retry after an undecided first attempt. RC2 is not yet
+vehicle-tested. Its changes are limited to Auto Seat startup handling.
 The existing release download below has not been replaced by this candidate.
 
 <img src="artwork/auto-seat-blue-frame.png" alt="Auto Seat Blue Frame icon" width="128">

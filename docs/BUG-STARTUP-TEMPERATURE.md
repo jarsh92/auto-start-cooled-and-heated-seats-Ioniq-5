@@ -106,6 +106,63 @@ that repeated cold and warm starts or every control path have passed. No new
 post-fix diagnostic logs have been reviewed yet. Keep the fix as a draft test
 candidate pending repeated starts and log review; the stable release is unchanged.
 
+## November 23 follow-up: RC1 missed starts; RC2 refinement
+
+The first post-fix diagnostic export contains 19 RC1 service runs: six issued
+heating commands and 13 ended without a confirmed temperature action. These
+are service runs, not 19 driving trips. At the logged time around 13:55, valid
+dashboard readings of 47°F and 46°F were observed, but the run ended with
+`no fresh stable outside temp ... no action`. Both readings call for heating
+with the saved 62°F threshold. RC1 required the same integer temperature and
+source; a change or missing record reset confirmation. The logs do not record
+every rejected/missing poll, so their exact sequence cannot be reconstructed.
+
+The firmware log buffer may also lose a short-lived temperature event between
+polls. This is a plausible contributing mechanism, not a proven explanation for
+all 13 timeouts. RC2 directly tests and addresses that case without falling back
+to unready -40 readings.
+
+RC2 supersedes the exact-temperature/source confirmation described above:
+
+- Confirm the same requested **heat / ventilation / no-action** result over at
+  least three kernel-clock seconds. A change such as 47°F to 55°F can confirm
+  heat; crossing into a different action restarts confirmation.
+- Retain a limited startup live capture from the two temperature source tags
+  observed on the supported firmware, `SplitScreenClimateView` and `CoNA`.
+  Exclude all pre-existing baseline records replayed by logcat. This avoids
+  repeatedly scanning the full Android log buffer and retains brief events.
+- A candidate is usable for at most 30 seconds after it was first observed by
+  the polling loop, unless a distinct new valid record refreshes it. A missing
+  record alone does not reset it; a new invalid dashboard event does. These
+  checks do not establish the actual sensor acquisition time.
+- Attempt startup normally, then allow one delayed retry starting at about
+  180 seconds after service entry, ending at 240 seconds. Only undecided
+  starts retry. Heating, ventilation, or a confirmed neutral result ends the
+  service; it does not regulate seats continuously during the drive.
+- The delayed window requires new records relative to its own baseline, not a
+  cached first-attempt temperature. No fallback temperature or default heater
+  command is introduced. Existing application manual priority remains active.
+- Stop the listener and remove its volatile capture on completion, cancellation
+  or a handled termination signal. If the listener exits, bounded snapshot
+  polling remains available as a fallback.
+
+**Manual-control limitation:** only commands through Auto Seat create the
+existing manual-override marker. Factory seat/wheel button changes are not
+detected by this service. A delayed automatic action could therefore change a
+factory-selected level. Reliable factory-state/manual-input detection needs
+separate validation; do not claim that RC2 handles it.
+
+The 27 startup test methods include large same-action temperature changes,
+source changes, short-lived/evicted records, late fresh data, delayed service
+readiness, bounded final exit, no repeated action after success, manual
+cancellation during the delay, and termination cleanup. Existing command and
+package lifecycle checks remain required. These are host simulations, not car
+validation. RC2 has not yet been tested on the vehicle.
+
+The Android Auto black-screen investigation is separate. RC2 changes no
+projection, Wi-Fi, NEMESIS, Maps/HUD or display-switching code. No causal link
+between that display problem and Auto Seat has been established.
+
 ## Log retention
 
 NEMESIS service output and Auto Seat diagnostics survive head-unit shutdowns.

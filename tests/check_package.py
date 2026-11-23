@@ -4,7 +4,7 @@ import configparser, hashlib, io, json, sys, zipfile
 
 ROOT=Path(__file__).resolve().parents[1];out=ROOT/'dist'
 candidate='--startup-candidate' in sys.argv
-suffix='-startup-fix-CANDIDATE' if candidate else ''
+suffix='-startup-fix-RC2' if candidate else ''
 if candidate:out=out/'startup-candidate'
 with zipfile.ZipFile(out/('Auto-Seat-2.0-autoseat.heat'+suffix+'-USB.zip')) as usb:
     assert usb.testzip() is None

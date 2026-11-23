@@ -14,7 +14,9 @@
 # sentinel, temp reads -1.0). ECO JSON "outTemperature" (Celsius) is a fallback,
 # but its uncorroborated -40C initialization value must never choose heating.
 # A ready dashboard declares its unit; only a missing unit uses ui_temp_is_c.
-# New records must remain consistent across polls at least three seconds apart.
+# Confirm the requested action across polls, not an exact temperature/source.
+# A bounded live capture retains records that would leave logcat's ring buffer.
+# One delayed retry is allowed only if no startup decision was reached.
 #
 # Runs once per boot (mode=background). TEST WHILE PARKED.
 #
@@ -80,7 +82,11 @@ clock_seconds() {
 # One logcat snapshot per poll, so both sources describe the same buffer.
 # Keep complete lines (including logcat timestamps) to distinguish new records.
 read_sources() {
-    _records=$(logcat -d -v time 2>/dev/null | grep -E '"outTemperature"|setOutsideTempUIAdvanced::temp =')
+    if [ -n "$LISTENER_PID" ] && kill -0 "$LISTENER_PID" 2>/dev/null; then
+        _records=$(grep -E '"outTemperature"|setOutsideTempUIAdvanced::temp =' "$CAPTURE" 2>/dev/null)
+    else
+        _records=$(logcat -d -v time 2>/dev/null | grep -E '"outTemperature"|setOutsideTempUIAdvanced::temp =')
+    fi
     ECO_LINE=""; UI_LINE=""
     while IFS= read -r _record; do
         case "$_record" in *'"outTemperature"'*) ECO_LINE=$_record;; esac
@@ -88,6 +94,46 @@ read_sources() {
     done <<EOF
 $_records
 EOF
+}
+
+LISTENER_PID=""; CAPTURE_DIR=""; CAPTURE=""; LOCK_HELD=0
+cleanup() {
+    if [ -n "$LISTENER_PID" ]; then
+        kill "$LISTENER_PID" 2>/dev/null
+        wait "$LISTENER_PID" 2>/dev/null
+    fi
+    [ "$LOCK_HELD" != 1 ] || rmdir "$LOCK" 2>/dev/null
+    if [ -n "$CAPTURE_DIR" ]; then
+        rm -f "$CAPTURE" 2>/dev/null
+        rmdir "$CAPTURE_DIR" 2>/dev/null
+    fi
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+
+manual_stop() {
+    if [ -f /dev/seat-comfort/manual.override ]; then
+        log 'manual command already requested this boot; skipping pending startup action'
+        _copy_usb; exit 0
+    fi
+}
+
+temperature_action() {
+    if [ "$1" -lt "$THRESH_F" ]; then ACTION=heat
+    elif [ "$COOL_ENABLED" = 1 ] && [ "$1" -gt "$COOL_ABOVE_F" ]; then ACTION=vent
+    else ACTION=none; fi
+}
+
+new_record() {
+    [ -n "$1" ] || return 1
+    # A live logcat reader initially replays its buffer, including records older
+    # than the last baseline line. Exclude ALL baseline records, not just last.
+    case "
+$BASE_RECORDS
+" in *"
+$1
+"*) return 1;; esac
+    return 0
 }
 
 # Strict signed decimal -> tenths, without awk, floating point, or octal input.
@@ -146,77 +192,142 @@ parse_ui() {
 
 case "$MAX_WAIT" in ''|*[!0-9]*|0*) MAX_WAIT=120;; esac
 [ "$MAX_WAIT" -le 600 ] || MAX_WAIT=120
-START_UPTIME=$(clock_seconds) || { log 'kernel uptime unavailable; no action'; _copy_usb; exit 0; }
-read_sources
-BASE_ECO=$ECO_LINE; BASE_UI=$UI_LINE
-log "temperature baseline captured uptime=${START_UPTIME}s; existing records cannot trigger startup"
-
-# Both binder endpoints must be available. Do not continue after a readiness timeout.
-SERVICE_DEADLINE=$(( START_UPTIME + MAX_WAIT ))
-SERVICES_READY=0
-while :; do
-    NOW=$(clock_seconds) || break
-    [ "$NOW" -lt "$SERVICE_DEADLINE" ] || break
-    if service check com.hkmc.vr 2>/dev/null | grep -q ': found' &&
-       service check com.hkmc.micom.usm 2>/dev/null | grep -q ': found'; then
-        SERVICES_READY=1; log "control services ready uptime=${NOW}s"; break
-    fi
-    sleep 2
-done
-[ "$SERVICES_READY" = 1 ] || { log 'control services not ready before deadline; no action'; _copy_usb; exit 0; }
-
-TEMP_F=""; PENDING_F=""; PENDING_SOURCE=""; PENDING_SINCE=0
-NOW=$(clock_seconds) || { log 'kernel uptime unavailable; no action'; _copy_usb; exit 0; }
-TEMP_DEADLINE=$(( NOW + MAX_WAIT ))
-while :; do
-    NOW=$(clock_seconds) || break
-    [ "$NOW" -lt "$TEMP_DEADLINE" ] || break
-    if [ -f /dev/seat-comfort/manual.override ]; then
-        log 'manual command already requested this boot; skipping pending startup action'
-        _copy_usb; exit 0
-    fi
-    read_sources
-    NOW=$(clock_seconds) || break
-    [ "$NOW" -lt "$TEMP_DEADLINE" ] || break
-    CANDIDATE_F=""; CANDIDATE_SOURCE=""
-    # Prefer the ready dashboard's declared unit over ECO JSON. Only records
-    # observed after this service's baseline are eligible, including fallback.
-    if [ -n "$UI_LINE" ] && [ "$UI_LINE" != "$BASE_UI" ] && parse_ui; then
-        :
-    elif [ -n "$ECO_LINE" ] && [ "$ECO_LINE" != "$BASE_ECO" ] && parse_eco; then
-        :
-    else
-        PENDING_F=""; PENDING_SOURCE=""
-        sleep 3; continue
-    fi
-    if [ "$CANDIDATE_F" != "$PENDING_F" ] || [ "$CANDIDATE_SOURCE" != "$PENDING_SOURCE" ]; then
-        PENDING_F=$CANDIDATE_F; PENDING_SOURCE=$CANDIDATE_SOURCE; PENDING_SINCE=$NOW
-        log "temperature candidate=${PENDING_F}F source=$PENDING_SOURCE uptime=${NOW}s; confirming"
-        D "candidate raw dashboard: $UI_LINE"
-        D "candidate raw ECO: $ECO_LINE"
-    elif [ "$(( NOW - PENDING_SINCE ))" -ge 3 ]; then
-        TEMP_F=$PENDING_F
-        log "confirmed outside=${TEMP_F}F source=$PENDING_SOURCE uptime=${NOW}s"
-        break
-    fi
-    sleep 3
-done
-
-[ -z "$TEMP_F" ] && { log "no fresh stable outside temp within ${MAX_WAIT}s after services ready; no action"; _copy_usb; exit 0; }
-
-
 if [ "$COOL_ENABLED" = "1" ] && [ "$COOL_ABOVE_F" -le "$THRESH_F" ]; then
     log "invalid thresholds: cool-above must exceed heat-below; no action"
     _copy_usb; exit 0
 fi
+START_UPTIME=$(clock_seconds) || { log 'kernel uptime unavailable; no action'; _copy_usb; exit 0; }
+RETRY_AFTER=180
+RETRY_WINDOW=60
+SAMPLE_MAX_AGE=30
+RETRY_AT=$(( START_UPTIME + RETRY_AFTER ))
+FINAL_DEADLINE=$(( RETRY_AT + RETRY_WINDOW ))
+# Snapshot the pre-existing buffer before listening. Old entries replayed by
+# logcat are excluded by their complete baseline identities.
+read_sources
+BASE_ECO=$ECO_LINE; BASE_UI=$UI_LINE
+BASE_RECORDS=$_records
+umask 077
+mkdir -p /dev/seat-comfort || exit 1
+CAPTURE_DIR=/dev/seat-comfort/temperature.$$
+mkdir "$CAPTURE_DIR" || exit 1
+CAPTURE=$CAPTURE_DIR/records.log
+# These are the two actual source tags observed on the supported US firmware.
+# Native filtering avoids piping the entire live Android log through a shell.
+logcat -v time 'SplitScreenClimateView:D' 'CoNA:I' '*:S' > "$CAPTURE" 2>/dev/null &
+LISTENER_PID=$!
+log "temperature baseline captured uptime=${START_UPTIME}s; existing records cannot trigger startup; reader=live-capture retry_at=${RETRY_AT}s"
+
+TEMP_F=""
+for ATTEMPT in 1 2; do
+    if [ "$ATTEMPT" = 2 ]; then
+        log "startup attempt 1 undecided; delayed retry scheduled uptime=${RETRY_AT}s"
+        while :; do
+            manual_stop
+            NOW=$(clock_seconds) || { log 'kernel uptime unavailable; no action'; _copy_usb; exit 0; }
+            [ "$NOW" -lt "$RETRY_AT" ] || break
+            sleep 3
+        done
+        [ "$NOW" -lt "$FINAL_DEADLINE" ] || break
+        # Do not use a first-attempt sample for delayed actuation.
+        read_sources
+        BASE_ECO=$ECO_LINE; BASE_UI=$UI_LINE
+        BASE_RECORDS=$_records
+        log "delayed startup retry began uptime=${NOW}s; fresh records required"
+        WINDOW_END=$FINAL_DEADLINE
+    else
+        WINDOW_END=$RETRY_AT
+    fi
+    LAST_ECO=$BASE_ECO; LAST_UI=$BASE_UI
+    PENDING_F=""; PENDING_SOURCE=""; PENDING_ACTION=""; PENDING_SINCE=0; PENDING_SEEN=0
+    NOW=$(clock_seconds) || break
+    SERVICE_DEADLINE=$(( NOW + MAX_WAIT ))
+    if [ "$ATTEMPT" = 2 ] || [ "$SERVICE_DEADLINE" -gt "$WINDOW_END" ]; then SERVICE_DEADLINE=$WINDOW_END; fi
+    SERVICES_READY=0
+    while :; do
+        manual_stop
+        NOW=$(clock_seconds) || break
+        [ "$NOW" -lt "$SERVICE_DEADLINE" ] || break
+        if service check com.hkmc.vr 2>/dev/null | grep -q ': found' &&
+           service check com.hkmc.micom.usm 2>/dev/null | grep -q ': found'; then
+            SERVICES_READY=1; log "control services ready attempt=$ATTEMPT uptime=${NOW}s"; break
+        fi
+        sleep 2
+    done
+    if [ "$SERVICES_READY" != 1 ]; then
+        log "control services not ready before deadline attempt=$ATTEMPT; no action"
+        continue
+    fi
+    NOW=$(clock_seconds) || break
+    TEMP_DEADLINE=$(( NOW + MAX_WAIT ))
+    if [ "$ATTEMPT" = 2 ]; then TEMP_DEADLINE=$WINDOW_END
+    elif [ "$TEMP_DEADLINE" -gt "$WINDOW_END" ]; then TEMP_DEADLINE=$WINDOW_END; fi
+    while :; do
+        manual_stop
+        NOW=$(clock_seconds) || break
+        [ "$NOW" -lt "$TEMP_DEADLINE" ] || break
+        read_sources
+        NOW=$(clock_seconds) || break
+        [ "$NOW" -lt "$TEMP_DEADLINE" ] || break
+        CANDIDATE_F=""; CANDIDATE_SOURCE=""; UI_NEW=0; ECO_NEW=0
+        if [ "$UI_LINE" != "$LAST_UI" ] && new_record "$UI_LINE"; then
+            UI_NEW=1; LAST_UI=$UI_LINE
+        fi
+        if [ "$ECO_LINE" != "$LAST_ECO" ] && new_record "$ECO_LINE"; then
+            ECO_NEW=1; LAST_ECO=$ECO_LINE
+        fi
+        if [ "$UI_NEW" = 1 ]; then
+            if ! parse_ui; then
+                log "new dashboard temperature invalid/not ready attempt=$ATTEMPT; confirmation reset"
+                PENDING_ACTION=""
+            fi
+        fi
+        if [ -z "$CANDIDATE_F" ] && [ "$ECO_NEW" = 1 ]; then
+            # A recent ready dashboard record remains authoritative over ECO.
+            if [ "$UI_NEW" != 1 ] && [ -n "$PENDING_ACTION" ] &&
+               [ "$PENDING_SOURCE" != eco ] && [ "$(( NOW - PENDING_SEEN ))" -le "$SAMPLE_MAX_AGE" ]; then
+                :
+            else
+                parse_eco || :
+            fi
+        fi
+        if [ -n "$CANDIDATE_F" ]; then
+            temperature_action "$CANDIDATE_F"
+            if [ "$ACTION" != "$PENDING_ACTION" ] || [ "$(( NOW - PENDING_SEEN ))" -gt "$SAMPLE_MAX_AGE" ]; then
+                PENDING_SINCE=$NOW
+            fi
+            PENDING_F=$CANDIDATE_F; PENDING_SOURCE=$CANDIDATE_SOURCE
+            PENDING_ACTION=$ACTION; PENDING_SEEN=$NOW
+            log "temperature candidate=${PENDING_F}F action=$ACTION source=$PENDING_SOURCE attempt=$ATTEMPT uptime=${NOW}s; confirming action"
+            D "candidate raw dashboard: $UI_LINE"
+            D "candidate raw ECO: $ECO_LINE"
+        fi
+        # Missing/evicted records do not immediately discard a fresh valid
+        # sample. A new invalid dashboard event does; samples expire after 30s.
+        if [ -n "$PENDING_ACTION" ]; then
+            if [ "$(( NOW - PENDING_SEEN ))" -gt "$SAMPLE_MAX_AGE" ]; then
+                log "temperature sample expired attempt=$ATTEMPT; confirmation reset"
+                PENDING_ACTION=""
+            elif [ "$(( NOW - PENDING_SINCE ))" -ge 3 ]; then
+                TEMP_F=$PENDING_F
+                log "confirmed outside=${TEMP_F}F action=$PENDING_ACTION source=$PENDING_SOURCE attempt=$ATTEMPT uptime=${NOW}s"
+                break
+            fi
+        fi
+        sleep 3
+    done
+    [ -z "$TEMP_F" ] || break
+    log "no fresh stable action before temperature deadline attempt=$ATTEMPT; no action"
+done
+[ -z "$TEMP_F" ] && { log 'startup temperature attempts exhausted; no action'; _copy_usb; exit 0; }
+
 # Share the manual-command lock only during actuation, not temperature waits.
 # /dev is cleared on reboot, so an interrupted command cannot lock out future boots.
 umask 077
 mkdir -p /dev/seat-comfort || exit 1
 LOCK=/dev/seat-comfort/actuation.lock
 mkdir "$LOCK" 2>/dev/null || { log "seat command already active; skipping startup action"; exit 0; }
-trap 'rmdir "$LOCK"' EXIT
-trap 'exit 1' HUP INT TERM
+LOCK_HELD=1
 # A manual request made while startup was waiting must remain authoritative.
 # This marker lives in /dev, so the next head-unit boot starts a new session.
 if [ -f /dev/seat-comfort/manual.override ]; then
