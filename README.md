@@ -11,10 +11,13 @@ Josh's main goal was to add temperature-based seat ventilation for equipped vehi
 ## Known startup bug — public test fix available
 
 The older release can accept an unready **−40°C/−40°F** temperature at startup
-and activate heating incorrectly. A corrected **[public test pre-release](https://github.com/jarsh92/auto-start-cooled-and-heated-seats-Ioniq-5/releases/tag/v2.0-startup-temperature-rc1)** is now available for people who want to try the fix.
+and activate heating incorrectly. A corrected **[public test pre-release](https://github.com/jarsh92/auto-start-cooled-and-heated-seats-Ioniq-5/releases/tag/v2.0-startup-temperature-rc2)** is now available for people who want to try the fix.
 
-The fix passed automated checks and initial owner installation feedback, but
-repeated real-world starts and post-fix log review remain pending. It is labeled
+RC1 later showed missed starts despite valid temperatures. The latest RC2
+public test confirms the requested action, retains brief temperature messages,
+and allows one bounded retry at about 3–4 minutes. It has passed 27 startup
+tests but has not yet been tested on the vehicle. Android Auto/NEMESIS fixes
+are separate; RC2 changes only Auto Seat startup handling. It is labeled
 **Testing — feedback welcome**, not proven stable. App version remains **2.0**.
 Read the pre-release installation instructions; it uses the existing clean installer.
 The earlier stable download below still contains the known startup bug.
