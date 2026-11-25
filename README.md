@@ -4,6 +4,17 @@
 
 Automatic startup heating and ventilation, with individual seat controls, for the tested US-market Hyundai IONIQ 5 Gen5W head unit running NEMESIS. The visible app name is **Auto Seat**; the current NEMESIS package ID is **`autoseat.heat`**.
 
+**Known startup bug:** owner logs confirm the released service can accept an
+unready ECO temperature of -40°C and choose heating incorrectly. A startup
+temperature fix is being prepared and host-tested; it is **not yet vehicle-tested**.
+See [bug evidence and fix design](docs/BUG-STARTUP-TEMPERATURE.md) and
+[candidate testing instructions](docs/STARTUP-TEMPERATURE-CANDIDATE.md).
+RC1's exact-temperature confirmation also proved unreliable in owner logs.
+RC2 now confirms the requested action, retains brief temperature messages and
+allows one delayed retry after an undecided first attempt. RC2 is not yet
+vehicle-tested. Its changes are limited to Auto Seat startup handling.
+The existing release download below has not been replaced by this candidate.
+
 <img src="artwork/auto-seat-blue-frame.png" alt="Auto Seat Blue Frame icon" width="128">
 
 Josh's main goal was to add temperature-based seat ventilation for equipped vehicles to the original heating-focused project. ChatGPT/Codex wrote the Auto Seat-specific code, interface changes, package scripts, tests and documentation at his direction. Josh supplied requirements, design choices and hands-on vehicle feedback. Automated tests and owner testing are not independent human code review.
